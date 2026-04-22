@@ -1,0 +1,37 @@
+<idea-plugin>
+    <id>com.fishnovel.idea</id>
+    <name>FishNovel</name>
+    <vendor email="support@fishnovel.local" url="https://gitee.com/">FishNovel</vendor>
+
+    <description><![CDATA[
+        FishNovel turns IntelliJ IDEA into a discreet novel reader with local multi-format support,
+        reading progress memory, bookmarks, history, and a future-ready Fanqie integration layer.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="com.fishnovel.idea.service.ReadingStateService"/>
+        <projectService serviceImplementation="com.fishnovel.idea.service.FishNovelProjectService"/>
+        <toolWindow factoryClass="com.fishnovel.idea.ui.FishNovelToolWindowFactory"
+                    id="FishNovel"
+                    anchor="right"
+                    icon="/META-INF/pluginIcon.svg"/>
+        <fileEditorProvider implementation="com.fishnovel.idea.editor.FishNovelFileEditorProvider"/>
+    </extensions>
+
+    <actions>
+        <action id="FishNovel.OpenToolWindowAction"
+                class="com.fishnovel.idea.action.OpenFishNovelToolWindowAction"
+                text="Open FishNovel"
+                description="Open the FishNovel reader tool window">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+        <action id="FishNovel.ImportBookAction"
+                class="com.fishnovel.idea.action.ImportBookAction"
+                text="Import Book into FishNovel"
+                description="Import a local novel file and open it in FishNovel">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>
