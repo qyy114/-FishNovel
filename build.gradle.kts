@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.fishnovel.idea"
-version = "0.1.0"
+version = "0.1.4"
 
 dependencies {
     implementation("org.jsoup:jsoup:1.18.1")
@@ -14,7 +14,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
 
     intellijPlatform {
-        intellijIdeaCommunity("2024.1")
+        local("D:/develop/IntelliJ IDEA 2025.3.4")
     }
 }
 
@@ -23,12 +23,12 @@ intellijPlatform {
         name = "FishNovel"
         version = project.version.toString()
         ideaVersion {
-            sinceBuild = "241"
-            untilBuild = "241.*"
+            sinceBuild = "253"
+            untilBuild = "253.*"
         }
         description = """
             FishNovel turns IntelliJ IDEA into a discreet novel reader with local multi-format support,
-            reading progress memory, bookmarks, history, and a future-ready Fanqie integration layer.
+            tool-window reading, progress memory, bookmarks, history, and web novel reading.
         """.trimIndent()
         vendor {
             name = "FishNovel"
@@ -40,13 +40,13 @@ intellijPlatform {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
-    options.release.set(17)
+    options.release.set(21)
 }
 
 val testSourceSet = the<org.gradle.api.tasks.SourceSetContainer>().named("test").get()
@@ -70,7 +70,10 @@ tasks.register<JavaExec>("unitTest") {
     mainClass.set("org.junit.runner.JUnitCore")
     args(
         "com.fishnovel.idea.parser.BookParserRegistryTest",
-        "com.fishnovel.idea.service.ReadingStateServiceTest"
+        "com.fishnovel.idea.parser.RemoteHtmlBookCrawlerTest",
+        "com.fishnovel.idea.service.ReadingStateServiceTest",
+        "com.fishnovel.idea.service.ReadingProgressResolverTest",
+        "com.fishnovel.idea.service.FishNovelProjectServiceTest"
     )
 }
 

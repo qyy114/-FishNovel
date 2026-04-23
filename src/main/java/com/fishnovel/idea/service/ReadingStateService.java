@@ -29,6 +29,7 @@ public final class ReadingStateService implements PersistentStateComponent<Readi
     @Override
     public void loadState(ReadingStateStore.StoredState state) {
         store.loadState(state);
+        ReadingPreferenceMigration.migrateLegacyPaperDefaults(store.getState());
     }
 
     public void registerBook(BookDocument document) {
@@ -75,7 +76,11 @@ public final class ReadingStateService implements PersistentStateComponent<Readi
         return store.addBookmark(bookId, bookTitle, chapterTitle, chapterIndex, contentOffset);
     }
 
-    public void removeBookmark(String bookmarkId) {
-        store.removeBookmark(bookmarkId);
+    public boolean removeBookmark(String bookmarkId) {
+        return store.removeBookmark(bookmarkId);
+    }
+
+    public void removeBook(String bookId) {
+        store.removeBook(bookId);
     }
 }

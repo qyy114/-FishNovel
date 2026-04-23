@@ -5,7 +5,7 @@
 
     <description><![CDATA[
         FishNovel turns IntelliJ IDEA into a discreet novel reader with local multi-format support,
-        reading progress memory, bookmarks, history, and a future-ready Fanqie integration layer.
+        reading progress memory, bookmarks, history, and web novel reading.
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
@@ -17,20 +17,13 @@
                     id="FishNovel"
                     anchor="right"
                     icon="/META-INF/pluginIcon.svg"/>
-        <fileEditorProvider implementation="com.fishnovel.idea.editor.FishNovelFileEditorProvider"/>
     </extensions>
 
     <actions>
         <action id="FishNovel.OpenToolWindowAction"
                 class="com.fishnovel.idea.action.OpenFishNovelToolWindowAction"
-                text="Open FishNovel"
-                description="Open the FishNovel reader tool window">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-        </action>
-        <action id="FishNovel.ImportBookAction"
-                class="com.fishnovel.idea.action.ImportBookAction"
-                text="Import Book into FishNovel"
-                description="Import a local novel file and open it in FishNovel">
+                text="打开 FishNovel"
+                description="打开 FishNovel 阅读工具窗口">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
     </actions>

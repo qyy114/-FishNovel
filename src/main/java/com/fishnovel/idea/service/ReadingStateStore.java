@@ -84,7 +84,10 @@ public final class ReadingStateStore {
         return findRecord(bookId)
             .map(record -> record.bookmarks == null
                 ? List.<Bookmark>of()
-                : record.bookmarks.stream().map(StoredBookmark::toRuntime).sorted(Comparator.comparingLong(Bookmark::getCreatedAt).reversed()).toList())
+                : record.bookmarks.stream()
+                    .map(StoredBookmark::toRuntime)
+                    .sorted(Comparator.comparingLong(Bookmark::getCreatedAt).reversed())
+                    .toList())
             .orElseGet(List::of);
     }
 
@@ -128,13 +131,20 @@ public final class ReadingStateStore {
         return storedBookmark.toRuntime();
     }
 
-    public synchronized void removeBookmark(String bookmarkId) {
+    public synchronized boolean removeBookmark(String bookmarkId) {
+        boolean removed = false;
         for (StoredBookRecord book : state.books) {
             if (book.bookmarks == null) {
                 continue;
             }
-            book.bookmarks.removeIf(bookmark -> bookmarkId.equals(bookmark.id));
+            removed |= book.bookmarks.removeIf(bookmark -> bookmarkId.equals(bookmark.id));
         }
+        return removed;
+    }
+
+    public synchronized void removeBook(String bookId) {
+        state.books.removeIf(book -> bookId.equals(book.bookId));
+        state.recentEntries.removeIf(entry -> bookId.equals(entry.bookId));
     }
 
     private Optional<StoredBookRecord> findRecord(String bookId) {
@@ -192,9 +202,10 @@ public final class ReadingStateStore {
         public int chapterIndex;
         public int contentOffset;
         public long lastOpenedAt;
+        public String chapterKey;
 
         public ReadingProgress toRuntime() {
-            return new ReadingProgress(chapterIndex, contentOffset, lastOpenedAt);
+            return new ReadingProgress(chapterIndex, contentOffset, lastOpenedAt, chapterKey);
         }
 
         public static StoredProgress from(ReadingProgress progress) {
@@ -202,6 +213,7 @@ public final class ReadingStateStore {
             storedProgress.chapterIndex = progress.getChapterIndex();
             storedProgress.contentOffset = progress.getContentOffset();
             storedProgress.lastOpenedAt = progress.getLastOpenedAt();
+            storedProgress.chapterKey = progress.getChapterKey();
             return storedProgress;
         }
     }

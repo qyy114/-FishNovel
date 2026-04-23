@@ -12,7 +12,7 @@ public final class ReadingPreferences {
     }
 
     public static ReadingPreferences defaults() {
-        return new ReadingPreferences(18, 0.35f, ReaderTheme.PAPER);
+        return new ReadingPreferences(0, 0.42f, ReaderTheme.AUTO);
     }
 
     public int getFontSize() {

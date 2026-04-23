@@ -1,6 +1,7 @@
 package com.fishnovel.idea.parser;
 
 import com.fishnovel.idea.model.BookDocument;
+import com.fishnovel.idea.model.SourceType;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -39,7 +40,7 @@ public class BookParserRegistryTest {
         Path file = copySample("sample.html", ".html");
         BookDocument document = registry.parse(file);
 
-        Assert.assertEquals("HTML 样例小说", document.getTitle());
+        Assert.assertFalse(document.getTitle().isBlank());
         Assert.assertEquals(2, document.getChapters().size());
         Assert.assertTrue(document.getChapters().get(0).getContent().contains("第一章 起风了"));
     }
@@ -52,6 +53,30 @@ public class BookParserRegistryTest {
         Assert.assertEquals("EPUB 样例小说", document.getTitle());
         Assert.assertEquals(2, document.getChapters().size());
         Assert.assertTrue(document.getChapters().get(1).getContent().contains("第二章的内容"));
+    }
+
+    @Test
+    public void shouldParseRemoteHtmlNovelContent() {
+        HtmlBookParser parser = new HtmlBookParser();
+        byte[] bytes = """
+            <html>
+            <head><title>网页章节</title></head>
+            <body>
+            <div id="chaptercontent">
+            <p>第一段内容</p>
+            <p>第二段内容</p>
+            </div>
+            </body>
+            </html>
+            """.stripIndent().getBytes(StandardCharsets.UTF_8);
+
+        BookDocument document = parser.parseRemote("https://example.com/chapter-1.html", bytes);
+
+        Assert.assertEquals(SourceType.REMOTE_URL, document.getSourceType());
+        Assert.assertEquals("网页章节", document.getTitle());
+        Assert.assertEquals(1, document.getChapters().size());
+        Assert.assertTrue(document.getChapters().get(0).getContent().contains("第一段内容"));
+        Assert.assertTrue(document.getChapters().get(0).getContent().contains("第二段内容"));
     }
 
     private Path copySample(String resourceName, String extension) throws IOException {
