@@ -10,6 +10,7 @@ import com.fishnovel.idea.service.FishNovelProjectService;
 import com.fishnovel.idea.service.ReadingStateService;
 import com.fishnovel.idea.source.RemoteChapterLoadResult;
 import com.fishnovel.idea.util.SupportedBookFormats;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
@@ -18,6 +19,7 @@ import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBList;
@@ -27,7 +29,11 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Dialog;
 import java.awt.Font;
+import java.awt.KeyboardFocusManager;
+import java.awt.KeyEventDispatcher;
+import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -57,17 +63,19 @@ import javax.swing.SwingUtilities;
 import javax.swing.plaf.basic.BasicSplitPaneDivider;
 import javax.swing.plaf.basic.BasicSplitPaneUI;
 
-public final class FishNovelToolWindowPanel extends JPanel {
+public final class FishNovelToolWindowPanel extends JPanel implements Disposable {
     private static final String SECTION_LIBRARY = "library";
     private static final String SECTION_RECENT = "recent";
     private static final String SECTION_BOOKMARKS = "bookmarks";
     private static final int SIDEBAR_EXPANDED_WIDTH = 248;
-    private static final int SIDEBAR_COLLAPSED_WIDTH = 36;
+    private static final int SIDEBAR_COLLAPSED_WIDTH = 30;
 
     private final Project project;
+    private final ToolWindow toolWindow;
     private final FishNovelProjectService projectService;
     private final ReadingStateService stateService;
     private final BookReaderPanel readerPanel;
+    private final KeyEventDispatcher bossKeyDispatcher = this::dispatchBossKey;
     private final DefaultListModel<BookShelfItem> libraryModel = new DefaultListModel<>();
     private final DefaultListModel<RecentEntry> recentModel = new DefaultListModel<>();
     private final DefaultListModel<Bookmark> bookmarkModel = new DefaultListModel<>();
@@ -75,6 +83,7 @@ public final class FishNovelToolWindowPanel extends JPanel {
     private final JBList<RecentEntry> recentList = new JBList<>(recentModel);
     private final JBList<Bookmark> bookmarkList = new JBList<>(bookmarkModel);
     private final ButtonGroup sectionButtonGroup = new ButtonGroup();
+    private final JPanel importToolbarActions = new JPanel();
     private final JPanel sidebarSections = new JPanel();
     private final JPanel librarySectionContent = new JPanel(new BorderLayout());
     private final JPanel recentSectionContent = new JPanel(new BorderLayout());
@@ -82,42 +91,70 @@ public final class FishNovelToolWindowPanel extends JPanel {
 
     private JSplitPane splitPane;
     private JPanel sidebar;
+    private JButton topToolbarsToggleButton;
     private JButton sidebarToggleButton;
     private JToggleButton librarySectionButton;
     private JToggleButton recentSectionButton;
     private JToggleButton bookmarkSectionButton;
     private String activeSection = SECTION_LIBRARY;
+    private boolean topToolbarsCollapsed = true;
     private boolean sidebarCollapsed;
     private boolean suppressLibraryOpen;
     private BookShelfItem libraryPopupTarget;
 
-    public FishNovelToolWindowPanel(Project project) {
+    public FishNovelToolWindowPanel(Project project, ToolWindow toolWindow) {
         super(new BorderLayout(0, 12));
         this.project = project;
+        this.toolWindow = toolWindow;
         this.projectService = FishNovelProjectService.getInstance(project);
         this.stateService = ReadingStateService.getInstance();
         this.readerPanel = new BookReaderPanel(project, this::refreshSidebar);
 
         buildUi();
+        installBossKeyDispatcher();
         refreshSidebar();
     }
 
+    private void installBossKeyDispatcher() {
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(bossKeyDispatcher);
+    }
+
+    private boolean dispatchBossKey(KeyEvent event) {
+        if (event.getID() != KeyEvent.KEY_PRESSED || !isShowing() || !toolWindow.isVisible()) {
+            return false;
+        }
+        Window activeWindow = KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+        if (activeWindow instanceof Dialog) {
+            return false;
+        }
+        toolWindow.hide(null);
+        return true;
+    }
+
+    @Override
+    public void dispose() {
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(bossKeyDispatcher);
+        readerPanel.disposePanel();
+    }
+
     private void buildUi() {
-        setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        setBorder(BorderFactory.createEmptyBorder(6, 0, 6, 6));
         setBackground(UIUtil.getPanelBackground());
 
         JButton importButton = createToolbarButton("导入小说");
         JButton onlineReadButton = createToolbarButton("在线阅读");
-        JButton refreshButton = createToolbarButton("更新");
         importButton.addActionListener(event -> importBook());
         onlineReadButton.addActionListener(event -> importWebBook());
-        refreshButton.addActionListener(event -> readerPanel.refreshCurrentBook());
 
-        JPanel toolbar = new JPanel();
+        JPanel toolbar = new JPanel(new BorderLayout(4, 0));
         toolbar.setOpaque(false);
-        toolbar.add(importButton);
-        toolbar.add(onlineReadButton);
-        toolbar.add(refreshButton);
+        topToolbarsToggleButton = createTopToolbarsToggleButton();
+        importToolbarActions.setOpaque(false);
+        importToolbarActions.add(importButton);
+        importToolbarActions.add(onlineReadButton);
+        toolbar.add(topToolbarsToggleButton, BorderLayout.WEST);
+        toolbar.add(importToolbarActions, BorderLayout.CENTER);
+        updateTopToolbarsCollapsedState();
 
         configureList(libraryList, "暂无书架");
         configureList(recentList, "暂无最近阅读");
@@ -175,7 +212,7 @@ public final class FishNovelToolWindowPanel extends JPanel {
     private JPanel createSidebar() {
         JPanel sidebar = new JPanel(new BorderLayout(0, 4));
         sidebar.setOpaque(false);
-        sidebar.setBorder(JBUI.Borders.empty(2, 0, 0, 8));
+        sidebar.setBorder(JBUI.Borders.empty(2, 0, 0, 0));
 
         sidebarToggleButton = createSidebarToggleButton();
         JPanel sidebarHeader = new JPanel(new BorderLayout());
@@ -217,6 +254,18 @@ public final class FishNovelToolWindowPanel extends JPanel {
         button.setPreferredSize(new Dimension(30, 28));
         button.setToolTipText("收起侧边栏");
         button.addActionListener(event -> toggleSidebarCollapsed());
+        styleSubtleButton(button);
+        return button;
+    }
+
+    private JButton createTopToolbarsToggleButton() {
+        JButton button = new JButton("\u203a");
+        button.setFocusPainted(false);
+        button.setOpaque(true);
+        button.setBorder(JBUI.Borders.empty(4, 8));
+        button.setPreferredSize(new Dimension(30, 28));
+        button.setToolTipText("展开导入和跳转功能栏");
+        button.addActionListener(event -> toggleTopToolbarsCollapsed());
         styleSubtleButton(button);
         return button;
     }
@@ -290,6 +339,23 @@ public final class FishNovelToolWindowPanel extends JPanel {
     private void toggleSidebarCollapsed() {
         sidebarCollapsed = !sidebarCollapsed;
         applySidebarCollapsedState();
+    }
+
+    private void toggleTopToolbarsCollapsed() {
+        topToolbarsCollapsed = !topToolbarsCollapsed;
+        updateTopToolbarsCollapsedState();
+    }
+
+    private void updateTopToolbarsCollapsedState() {
+        if (topToolbarsToggleButton == null) {
+            return;
+        }
+        importToolbarActions.setVisible(!topToolbarsCollapsed);
+        readerPanel.setControlsCollapsed(topToolbarsCollapsed);
+        topToolbarsToggleButton.setText(topToolbarsCollapsed ? "\u203a" : "\u2039");
+        topToolbarsToggleButton.setToolTipText(topToolbarsCollapsed ? "展开导入和跳转功能栏" : "收起导入和跳转功能栏");
+        revalidate();
+        repaint();
     }
 
     private void applySidebarCollapsedState() {
@@ -428,7 +494,7 @@ public final class FishNovelToolWindowPanel extends JPanel {
         splitPane.setBorder(BorderFactory.createEmptyBorder());
         splitPane.setOpaque(false);
         splitPane.setContinuousLayout(true);
-        splitPane.setDividerSize(2);
+        splitPane.setDividerSize(0);
         splitPane.setBackground(UIUtil.getPanelBackground());
         splitPane.setUI(new BasicSplitPaneUI() {
             @Override

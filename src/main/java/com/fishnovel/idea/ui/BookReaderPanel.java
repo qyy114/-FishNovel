@@ -71,10 +71,13 @@ public final class BookReaderPanel extends JPanel {
     private final JScrollPane scrollPane = new JScrollPane(textPane);
     private final JPanel readerShell = new JPanel(new GridBagLayout());
     private final JPanel readerCard = new JPanel(new BorderLayout());
+    private final JPanel controlPanel = new JPanel(new WrappingFlowLayout(FlowLayout.LEFT, 4, 4));
+    private final JPanel bottomNavigationPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 4));
     private final JButton bookmarkButton = new JButton("添加书签");
+    private final JButton refreshButton = new JButton("\u66f4\u65b0");
     private final JButton jumpButton = new JButton("\u8df3\u8f6c");
-    private final JButton previousRemoteButton = new JButton("\u2039");
-    private final JButton nextRemoteButton = new JButton("\u203a");
+    private final JButton previousRemoteButton = new JButton("\u4e0a\u4e00\u9875");
+    private final JButton nextRemoteButton = new JButton("\u4e0b\u4e00\u9875");
     private final JButton fontMinusButton = new JButton("A-");
     private final JButton fontPlusButton = new JButton("A+");
     private final JButton spacingMinusButton = new JButton("紧凑");
@@ -84,6 +87,7 @@ public final class BookReaderPanel extends JPanel {
     private RemoteChapterNavigation remoteNavigation;
     private boolean adjusting;
     private boolean loading;
+    private boolean controlsCollapsed = true;
 
     public BookReaderPanel(Project project, Runnable onStateChanged) {
         super(new BorderLayout());
@@ -100,40 +104,37 @@ public final class BookReaderPanel extends JPanel {
     private void buildUi() {
         setBorder(JBUI.Borders.empty());
 
-        JPanel header = new JPanel(new BorderLayout());
-        header.setBorder(JBUI.Borders.emptyBottom(6));
+        JPanel header = new JPanel(new BorderLayout(8, 0));
+        header.setBorder(JBUI.Borders.emptyBottom(3));
         header.setOpaque(false);
 
         chapterMetaLabel.setFont(chapterMetaLabel.getFont().deriveFont(Font.PLAIN, 12f));
         header.add(chapterMetaLabel, BorderLayout.WEST);
 
-        JPanel controls = new JPanel(new WrappingFlowLayout(FlowLayout.LEFT, 4, 4));
-        controls.setOpaque(false);
-        controls.add(new JBLabel("章节"));
+        controlPanel.setOpaque(false);
+        controlPanel.add(new JBLabel("章节"));
         chapterSelector.setPreferredSize(new Dimension(168, 28));
-        controls.add(chapterSelector);
-        controls.add(jumpButton);
+        controlPanel.add(chapterSelector);
+        controlPanel.add(jumpButton);
+        controlPanel.add(refreshButton);
         previousRemoteButton.setToolTipText("上一章");
         nextRemoteButton.setToolTipText("下一章");
-        previousRemoteButton.setPreferredSize(new Dimension(30, 28));
-        nextRemoteButton.setPreferredSize(new Dimension(30, 28));
-        controls.add(previousRemoteButton);
-        controls.add(nextRemoteButton);
-        controls.add(fontMinusButton);
-        controls.add(fontPlusButton);
-        controls.add(spacingMinusButton);
-        controls.add(spacingPlusButton);
-        controls.add(new JBLabel("主题"));
-        controls.add(themeSelector);
-        controls.add(bookmarkButton);
+        controlPanel.add(fontMinusButton);
+        controlPanel.add(fontPlusButton);
+        controlPanel.add(spacingMinusButton);
+        controlPanel.add(spacingPlusButton);
+        controlPanel.add(new JBLabel("主题"));
+        controlPanel.add(themeSelector);
+        controlPanel.add(bookmarkButton);
 
-        JPanel topPanel = new JPanel(new BorderLayout(0, 8));
+        JPanel topPanel = new JPanel(new BorderLayout(0, 3));
         topPanel.setOpaque(false);
         topPanel.add(header, BorderLayout.NORTH);
-        topPanel.add(controls, BorderLayout.SOUTH);
+        topPanel.add(controlPanel, BorderLayout.SOUTH);
+        updateControlsCollapsedState();
 
         textPane.setEditable(false);
-        textPane.setBorder(new EmptyBorder(28, 34, 32, 34));
+        textPane.setBorder(new EmptyBorder(10, 8, 12, 10));
         textPane.putClientProperty("JEditorPane.honorDisplayProperties", Boolean.TRUE);
         textPane.setOpaque(true);
 
@@ -144,6 +145,10 @@ public final class BookReaderPanel extends JPanel {
         scrollPane.setOpaque(true);
 
         readerCard.add(scrollPane, BorderLayout.CENTER);
+        bottomNavigationPanel.setOpaque(false);
+        bottomNavigationPanel.add(previousRemoteButton);
+        bottomNavigationPanel.add(nextRemoteButton);
+        readerCard.add(bottomNavigationPanel, BorderLayout.SOUTH);
         readerCard.setPreferredSize(new Dimension(780, 0));
         readerCard.setBorder(BorderFactory.createEmptyBorder());
 
@@ -183,6 +188,7 @@ public final class BookReaderPanel extends JPanel {
         spacingMinusButton.addActionListener(event -> shiftLineSpacing(-0.06f));
         spacingPlusButton.addActionListener(event -> shiftLineSpacing(0.06f));
         bookmarkButton.addActionListener(event -> addBookmark());
+        refreshButton.addActionListener(event -> refreshCurrentBook());
         jumpButton.addActionListener(event -> jumpToChapter());
         previousRemoteButton.addActionListener(event -> loadRemoteChapter(remoteNavigation == null ? null : remoteNavigation.getPreviousUrl()));
         nextRemoteButton.addActionListener(event -> loadRemoteChapter(remoteNavigation == null ? null : remoteNavigation.getNextUrl()));
@@ -207,6 +213,11 @@ public final class BookReaderPanel extends JPanel {
         if (result.hasWarning()) {
             Messages.showWarningDialog(project, result.getWarning(), "FishNovel");
         }
+    }
+
+    public void setControlsCollapsed(boolean collapsed) {
+        controlsCollapsed = collapsed;
+        updateControlsCollapsedState();
     }
 
     public void refreshCurrentBook() {
@@ -466,18 +477,24 @@ public final class BookReaderPanel extends JPanel {
         updateRemoteButtons();
     }
 
+    private void updateControlsCollapsedState() {
+        controlPanel.setVisible(!controlsCollapsed);
+        revalidate();
+        repaint();
+    }
+
     private void updateRemoteButtons() {
         boolean remoteDocument = currentDocument != null
             && currentDocument.getSourceType() == SourceType.REMOTE_URL
             && remoteNavigation != null;
         jumpButton.setEnabled(currentDocument != null && !loading);
-        previousRemoteButton.setVisible(remoteDocument);
-        nextRemoteButton.setVisible(remoteDocument);
+        refreshButton.setEnabled(currentDocument != null && !loading);
+        bottomNavigationPanel.setVisible(remoteDocument);
         previousRemoteButton.setEnabled(remoteDocument && remoteNavigation.hasPrevious() && !loading);
         nextRemoteButton.setEnabled(remoteDocument && remoteNavigation.hasNext() && !loading);
-        if (previousRemoteButton.getParent() != null) {
-            previousRemoteButton.getParent().revalidate();
-            previousRemoteButton.getParent().repaint();
+        if (bottomNavigationPanel.getParent() != null) {
+            bottomNavigationPanel.getParent().revalidate();
+            bottomNavigationPanel.getParent().repaint();
         }
     }
 
@@ -604,6 +621,7 @@ public final class BookReaderPanel extends JPanel {
         textPane.setSelectedTextColor(palette.textColor);
 
         styleButton(bookmarkButton, palette, true);
+        styleButton(refreshButton, palette, false);
         styleButton(jumpButton, palette, false);
         styleButton(previousRemoteButton, palette, false);
         styleButton(nextRemoteButton, palette, false);
@@ -643,7 +661,7 @@ public final class BookReaderPanel extends JPanel {
         StyleConstants.setFontFamily(attributes, textPane.getFont().getFamily());
         StyleConstants.setFontSize(attributes, fontSize);
         StyleConstants.setLineSpacing(attributes, preferences.getLineSpacing());
-        StyleConstants.setFirstLineIndent(attributes, fontSize);
+        StyleConstants.setFirstLineIndent(attributes, 0f);
         document.setParagraphAttributes(0, document.getLength(), attributes, false);
     }
 

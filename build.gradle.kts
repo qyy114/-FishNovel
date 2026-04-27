@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.fishnovel.idea"
-version = "0.1.4"
+version = "0.1.5"
 
 dependencies {
     implementation("org.jsoup:jsoup:1.18.1")
