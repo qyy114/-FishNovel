@@ -71,6 +71,10 @@ tasks.register<JavaExec>("unitTest") {
     args(
         "com.fishnovel.idea.parser.BookParserRegistryTest",
         "com.fishnovel.idea.parser.RemoteHtmlBookCrawlerTest",
+        "com.fishnovel.idea.parser.TxtBookParserTest",
+        "com.fishnovel.idea.source.BqgAjaxSourceAdapterTest",
+        "com.fishnovel.idea.source.RemoteChapterSourceRegistryTest",
+        "com.fishnovel.idea.service.ChapterJumpResolverTest",
         "com.fishnovel.idea.service.ReadingStateServiceTest",
         "com.fishnovel.idea.service.ReadingProgressResolverTest",
         "com.fishnovel.idea.service.FishNovelProjectServiceTest"

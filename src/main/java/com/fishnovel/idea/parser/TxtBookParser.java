@@ -14,7 +14,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class TxtBookParser implements BookParser {
-    private static final Pattern CHAPTER_PATTERN = Pattern.compile("(?m)^(第.{1,20}[章节回卷篇部集].*)$");
+    private static final String CHAPTER_NUMBER = "0-9\\u96f6\\u3007\\u4e00\\u4e8c\\u4e24\\u4e09\\u56db\\u4e94\\u516d\\u4e03\\u516b\\u4e5d\\u5341\\u767e\\u5343\\u4e07";
+    private static final Pattern CHAPTER_PATTERN = Pattern.compile(
+        "(?m)^\\s*((?:\\u7b2c\\s*[" + CHAPTER_NUMBER + "]{1,20}\\s*[\\u7ae0\\u8282\\u56de\\u8bdd\\u5377\\u7bc7\\u90e8\\u96c6]"
+            + "|\\u5377\\s*[" + CHAPTER_NUMBER + "]{1,20}).*)$"
+    );
 
     @Override
     public boolean supports(Path path) {

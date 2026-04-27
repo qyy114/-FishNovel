@@ -3,18 +3,18 @@ package com.fishnovel.idea.parser;
 import com.fishnovel.idea.model.BookDocument;
 import com.fishnovel.idea.model.Chapter;
 import com.fishnovel.idea.model.SourceType;
+import com.fishnovel.idea.source.RemoteChapterLoadResult;
+import com.fishnovel.idea.source.RemoteChapterNavigation;
 import com.fishnovel.idea.util.BookIdGenerator;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 public final class RemoteHtmlBookCrawler {
-    private static final int MAX_CHAPTERS = 120;
-    private static final int MAX_PAGES = 240;
+    private static final int MAX_PAGES_PER_CHAPTER = 24;
 
     private final HtmlBookParser parser;
 
@@ -23,60 +23,68 @@ public final class RemoteHtmlBookCrawler {
     }
 
     public BookDocument crawl(String startUrl, RemotePageLoader loader) throws IOException {
+        return crawlChapter(startUrl, loader, "generic-html").getDocument();
+    }
+
+    public RemoteChapterLoadResult crawlChapter(String startUrl, RemotePageLoader loader, String sourceId) throws IOException {
         Set<String> visitedUrls = new LinkedHashSet<>();
-        List<Chapter> chapters = new ArrayList<>();
         String currentUrl = startUrl;
         String bookTitle = "";
-        String currentChapterTitle = null;
-        StringBuilder currentChapterContent = new StringBuilder();
+        String chapterTitle = null;
+        String previousChapterUrl = null;
+        String nextChapterUrl = null;
+        StringBuilder chapterContent = new StringBuilder();
         int pageCount = 0;
 
         while (currentUrl != null
             && !currentUrl.isBlank()
             && visitedUrls.add(currentUrl)
-            && pageCount < MAX_PAGES
-            && chapters.size() < MAX_CHAPTERS) {
+            && pageCount < MAX_PAGES_PER_CHAPTER) {
             RemoteHtmlPage page = parser.parseRemotePage(currentUrl, loader.load(currentUrl));
             pageCount++;
 
             if (bookTitle.isBlank()) {
                 bookTitle = page.getBookTitle();
             }
-            if (currentChapterTitle == null) {
-                currentChapterTitle = page.getChapterTitle();
+            if (chapterTitle == null || chapterTitle.isBlank()) {
+                chapterTitle = page.getChapterTitle();
             }
-            if (!Objects.equals(currentChapterTitle, page.getChapterTitle())) {
-                chapters.add(new Chapter(chapters.size(), currentChapterTitle, currentChapterContent.toString().trim(), 0));
-                currentChapterTitle = page.getChapterTitle();
-                currentChapterContent = new StringBuilder();
-                if (chapters.size() >= MAX_CHAPTERS) {
-                    break;
-                }
+            if (previousChapterUrl == null) {
+                previousChapterUrl = page.getPreviousChapterUrl();
             }
 
-            appendChapterPage(currentChapterContent, page.getContent());
-            currentUrl = sanitizeNextUrl(page.getNextUrl(), visitedUrls);
+            appendChapterPage(chapterContent, page.getContent());
+            String nextPageUrl = sanitizeNextUrl(page.getNextPageUrl(), visitedUrls);
+            if (nextPageUrl == null) {
+                nextChapterUrl = page.getNextChapterUrl();
+                break;
+            }
+            currentUrl = nextPageUrl;
         }
 
-        if (currentChapterTitle != null && currentChapterContent.length() > 0 && chapters.size() < MAX_CHAPTERS) {
-            chapters.add(new Chapter(chapters.size(), currentChapterTitle, currentChapterContent.toString().trim(), 0));
+        if (chapterTitle == null || chapterTitle.isBlank() || chapterContent.length() == 0) {
+            throw new IOException("No readable chapter content was found on the web page.");
         }
 
-        if (chapters.isEmpty()) {
-            throw new IOException("网页正文解析失败，未找到可阅读的章节内容。");
-        }
-
-        String resolvedTitle = bookTitle.isBlank() ? chapters.get(0).getTitle() : bookTitle;
-        String digestSource = startUrl + "#" + chapters.size() + "#" + visitedUrls.size();
-        return new BookDocument(
-            BookIdGenerator.fromBytes(startUrl.getBytes(StandardCharsets.UTF_8)),
+        String resolvedTitle = bookTitle.isBlank() ? chapterTitle : bookTitle;
+        BookDocument document = new BookDocument(
+            BookIdGenerator.fromBytes(bookIdentity(startUrl, resolvedTitle).getBytes(StandardCharsets.UTF_8)),
             resolvedTitle,
             SourceType.REMOTE_URL,
             startUrl,
             "html",
-            BookIdGenerator.fromBytes(digestSource.getBytes(StandardCharsets.UTF_8)),
+            BookIdGenerator.fromBytes((startUrl + "#" + visitedUrls.size()).getBytes(StandardCharsets.UTF_8)),
             null,
-            chapters
+            List.of(new Chapter(0, chapterTitle, chapterContent.toString().trim(), 0))
+        );
+        String warning = pageCount >= MAX_PAGES_PER_CHAPTER
+            ? "Stopped after loading the maximum number of pages for one chapter."
+            : null;
+        return new RemoteChapterLoadResult(
+            document,
+            new RemoteChapterNavigation(startUrl, previousChapterUrl, nextChapterUrl),
+            sourceId,
+            warning
         );
     }
 
@@ -95,6 +103,15 @@ public final class RemoteHtmlBookCrawler {
             return null;
         }
         return nextUrl;
+    }
+
+    private String bookIdentity(String startUrl, String title) {
+        URI uri = URI.create(startUrl);
+        String host = uri.getHost() == null ? "" : uri.getHost();
+        String path = uri.getPath() == null ? "" : uri.getPath();
+        int lastSlash = path.lastIndexOf('/');
+        String directory = lastSlash <= 0 ? path : path.substring(0, lastSlash);
+        return host + directory + "#" + title;
     }
 
     @FunctionalInterface

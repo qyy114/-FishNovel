@@ -4,8 +4,9 @@ import com.fishnovel.idea.model.BookDocument;
 import com.fishnovel.idea.model.BookShelfItem;
 import com.fishnovel.idea.model.SourceType;
 import com.fishnovel.idea.parser.BookParserRegistry;
-import com.fishnovel.idea.parser.HtmlBookParser;
-import com.fishnovel.idea.parser.RemoteHtmlBookCrawler;
+import com.fishnovel.idea.source.RemoteChapterLoadResult;
+import com.fishnovel.idea.source.RemoteChapterSourceAdapter;
+import com.fishnovel.idea.source.RemoteChapterSourceRegistry;
 import com.intellij.openapi.components.Service;
 import com.intellij.openapi.project.Project;
 import java.io.IOException;
@@ -22,14 +23,14 @@ public final class FishNovelProjectService {
 
     private final BookParserRegistry parserRegistry;
     private final HttpClient httpClient;
-    private final RemoteHtmlBookCrawler remoteHtmlBookCrawler;
+    private final RemoteChapterSourceRegistry remoteSourceRegistry;
 
     public FishNovelProjectService(Project project) {
         this.parserRegistry = BookParserRegistry.defaultRegistry();
         this.httpClient = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
-        this.remoteHtmlBookCrawler = new RemoteHtmlBookCrawler(new HtmlBookParser());
+        this.remoteSourceRegistry = RemoteChapterSourceRegistry.defaultRegistry();
     }
 
     public BookDocument importBook(Path path) throws IOException {
@@ -39,19 +40,39 @@ public final class FishNovelProjectService {
     }
 
     public BookDocument importBookFromUrl(String url) throws IOException {
+        return importRemoteChapterFromUrl(url).getDocument();
+    }
+
+    public RemoteChapterLoadResult importRemoteChapterFromUrl(String url) throws IOException {
         try {
-            BookDocument document = remoteHtmlBookCrawler.crawl(url, currentUrl -> {
+            URI requestUri = URI.create(url);
+            RemoteChapterSourceAdapter adapter = remoteSourceRegistry.findAdapter(requestUri)
+                .orElseThrow(() -> new IOException("Unsupported web page URL: " + url));
+            RemoteChapterLoadResult result = adapter.loadChapter(requestUri, currentUrl -> {
                 try {
                     return loadRemotePage(currentUrl);
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
-                    throw new IOException("网页导入被中断。", ex);
+                    throw new IOException("Web page loading was interrupted.", ex);
                 }
             });
-            ReadingStateService.getInstance().registerBook(document);
-            return document;
+            ReadingStateService.getInstance().registerBook(result.getDocument());
+            return result;
         } catch (IllegalArgumentException ex) {
-            throw new IOException("无效的网页地址：" + url, ex);
+            throw new IOException("Invalid web page URL: " + url, ex);
+        }
+    }
+
+    public RemoteChapterLoadResult importRemoteChapterByNumber(String currentUrl, int chapterNumber) throws IOException {
+        try {
+            URI currentUri = URI.create(currentUrl);
+            RemoteChapterSourceAdapter adapter = remoteSourceRegistry.findAdapter(currentUri)
+                .orElseThrow(() -> new IOException("Current web source does not support chapter jump."));
+            String targetUrl = adapter.resolveChapterJump(currentUri, chapterNumber)
+                .orElseThrow(() -> new IOException("Current web source does not support chapter jump."));
+            return importRemoteChapterFromUrl(targetUrl);
+        } catch (IllegalArgumentException ex) {
+            throw new IOException("Invalid current web chapter URL: " + currentUrl, ex);
         }
     }
 
@@ -81,10 +102,10 @@ public final class FishNovelProjectService {
             .build();
         HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
         if (response.statusCode() >= 400) {
-            throw new IOException("网页请求失败，状态码：" + response.statusCode());
+            throw new IOException("Web page request failed with status code: " + response.statusCode());
         }
         if (RemoteRedirectPolicy.isUnexpectedRedirect(requestUri, response.uri())) {
-            throw new IOException("网页被重定向到了其他站点：" + response.uri());
+            throw new IOException("Web page was redirected to another site: " + response.uri());
         }
         return response.body();
     }

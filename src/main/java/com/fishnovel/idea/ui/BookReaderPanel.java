@@ -6,8 +6,17 @@ import com.fishnovel.idea.model.Chapter;
 import com.fishnovel.idea.model.ReaderTheme;
 import com.fishnovel.idea.model.ReadingPreferences;
 import com.fishnovel.idea.model.ReadingProgress;
+import com.fishnovel.idea.model.SourceType;
+import com.fishnovel.idea.service.ChapterJumpResolver;
+import com.fishnovel.idea.service.FishNovelProjectService;
 import com.fishnovel.idea.service.ReadingProgressResolver;
 import com.fishnovel.idea.service.ReadingStateService;
+import com.fishnovel.idea.source.RemoteChapterLoadResult;
+import com.fishnovel.idea.source.RemoteChapterNavigation;
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.progress.ProgressIndicator;
+import com.intellij.openapi.progress.ProgressManager;
+import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBLabel;
@@ -15,6 +24,8 @@ import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -23,9 +34,11 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Point;
 import java.awt.geom.Rectangle2D;
+import java.io.IOException;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.util.OptionalInt;
 import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
@@ -47,12 +60,11 @@ public final class BookReaderPanel extends JPanel {
     private static final int MAX_FONT_SIZE = 30;
 
     private final Project project;
+    private final FishNovelProjectService projectService;
     private final ReadingStateService stateService;
     private final Runnable onStateChanged;
 
-    private final JBLabel titleLabel = new JBLabel("FishNovel");
-    private final JBLabel chapterMetaLabel = new JBLabel("导入一本小说开始阅读");
-    private final JBLabel sourceLabel = new JBLabel("支持 TXT / EPUB / Markdown / HTML / 网页章节");
+    private final JBLabel chapterMetaLabel = new JBLabel("导入或在线阅读后开始");
     private final JComboBox<Chapter> chapterSelector = new JComboBox<>();
     private final JComboBox<ReaderTheme> themeSelector = new JComboBox<>(ReaderTheme.values());
     private final JTextPane textPane = new JTextPane();
@@ -60,17 +72,23 @@ public final class BookReaderPanel extends JPanel {
     private final JPanel readerShell = new JPanel(new GridBagLayout());
     private final JPanel readerCard = new JPanel(new BorderLayout());
     private final JButton bookmarkButton = new JButton("添加书签");
+    private final JButton jumpButton = new JButton("\u8df3\u8f6c");
+    private final JButton previousRemoteButton = new JButton("\u2039");
+    private final JButton nextRemoteButton = new JButton("\u203a");
     private final JButton fontMinusButton = new JButton("A-");
     private final JButton fontPlusButton = new JButton("A+");
     private final JButton spacingMinusButton = new JButton("紧凑");
     private final JButton spacingPlusButton = new JButton("舒展");
 
     private BookDocument currentDocument;
+    private RemoteChapterNavigation remoteNavigation;
     private boolean adjusting;
+    private boolean loading;
 
     public BookReaderPanel(Project project, Runnable onStateChanged) {
         super(new BorderLayout());
         this.project = project;
+        this.projectService = FishNovelProjectService.getInstance(project);
         this.stateService = ReadingStateService.getInstance();
         this.onStateChanged = onStateChanged;
 
@@ -82,26 +100,25 @@ public final class BookReaderPanel extends JPanel {
     private void buildUi() {
         setBorder(JBUI.Borders.empty());
 
-        JPanel header = new JPanel();
-        header.setLayout(new BoxLayout(header, BoxLayout.Y_AXIS));
-        header.setBorder(JBUI.Borders.emptyBottom(10));
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBorder(JBUI.Borders.emptyBottom(6));
         header.setOpaque(false);
 
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 22f));
         chapterMetaLabel.setFont(chapterMetaLabel.getFont().deriveFont(Font.PLAIN, 12f));
-        sourceLabel.setFont(sourceLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        header.add(chapterMetaLabel, BorderLayout.WEST);
 
-        header.add(titleLabel);
-        header.add(Box.createVerticalStrut(4));
-        header.add(chapterMetaLabel);
-        header.add(Box.createVerticalStrut(2));
-        header.add(sourceLabel);
-
-        JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JPanel controls = new JPanel(new WrappingFlowLayout(FlowLayout.LEFT, 4, 4));
         controls.setOpaque(false);
         controls.add(new JBLabel("章节"));
-        chapterSelector.setPreferredSize(new Dimension(220, 30));
+        chapterSelector.setPreferredSize(new Dimension(168, 28));
         controls.add(chapterSelector);
+        controls.add(jumpButton);
+        previousRemoteButton.setToolTipText("上一章");
+        nextRemoteButton.setToolTipText("下一章");
+        previousRemoteButton.setPreferredSize(new Dimension(30, 28));
+        nextRemoteButton.setPreferredSize(new Dimension(30, 28));
+        controls.add(previousRemoteButton);
+        controls.add(nextRemoteButton);
         controls.add(fontMinusButton);
         controls.add(fontPlusButton);
         controls.add(spacingMinusButton);
@@ -166,6 +183,9 @@ public final class BookReaderPanel extends JPanel {
         spacingMinusButton.addActionListener(event -> shiftLineSpacing(-0.06f));
         spacingPlusButton.addActionListener(event -> shiftLineSpacing(0.06f));
         bookmarkButton.addActionListener(event -> addBookmark());
+        jumpButton.addActionListener(event -> jumpToChapter());
+        previousRemoteButton.addActionListener(event -> loadRemoteChapter(remoteNavigation == null ? null : remoteNavigation.getPreviousUrl()));
+        nextRemoteButton.addActionListener(event -> loadRemoteChapter(remoteNavigation == null ? null : remoteNavigation.getNextUrl()));
 
         scrollPane.getVerticalScrollBar().addAdjustmentListener(event -> {
             if (!event.getValueIsAdjusting() && currentDocument != null && !adjusting) {
@@ -179,12 +199,39 @@ public final class BookReaderPanel extends JPanel {
     }
 
     public void openBook(BookDocument document, ReadingProgress overrideProgress) {
+        openBook(document, overrideProgress, null);
+    }
+
+    public void openRemoteChapter(RemoteChapterLoadResult result) {
+        openBook(result.getDocument(), null, result.getNavigation());
+        if (result.hasWarning()) {
+            Messages.showWarningDialog(project, result.getWarning(), "FishNovel");
+        }
+    }
+
+    public void refreshCurrentBook() {
+        if (currentDocument == null) {
+            Messages.showWarningDialog(project, "当前没有正在阅读的小说。", "FishNovel");
+            return;
+        }
+        if (loading) {
+            return;
+        }
+
+        BookDocument document = currentDocument;
+        ReadingProgress progress = currentProgressSnapshot();
+        if (document.getSourceType() == SourceType.REMOTE_URL) {
+            refreshRemoteDocument(document, progress);
+            return;
+        }
+        refreshLocalDocument(document, progress);
+    }
+
+    private void openBook(BookDocument document, ReadingProgress overrideProgress, RemoteChapterNavigation navigation) {
         currentDocument = document;
+        remoteNavigation = navigation;
         adjusting = true;
         stateService.registerBook(document);
-
-        titleLabel.setText(document.getTitle());
-        sourceLabel.setText(formatSourceLine(document));
 
         chapterSelector.removeAllItems();
         for (Chapter chapter : document.getChapters()) {
@@ -197,33 +244,26 @@ public final class BookReaderPanel extends JPanel {
 
         ReadingProgress progress = overrideProgress == null ? stateService.getProgress(document.getBookId()) : overrideProgress;
         int chapterIndex = ReadingProgressResolver.resolveChapterIndex(document, progress);
+        int contentOffset = ReadingProgressResolver.resolveContentOffset(document, progress, chapterIndex);
         chapterSelector.setSelectedIndex(chapterIndex);
         adjusting = false;
-        renderChapter(chapterIndex, progress.getContentOffset());
+        renderChapter(chapterIndex, contentOffset);
     }
 
     public void clearBook() {
         currentDocument = null;
+        remoteNavigation = null;
         adjusting = true;
-        titleLabel.setText("FishNovel");
-        chapterMetaLabel.setText("导入一本小说开始阅读");
-        sourceLabel.setText("支持 TXT / EPUB / Markdown / HTML / 网页章节");
+        chapterMetaLabel.setText("导入或在线阅读后开始");
         chapterSelector.removeAllItems();
         textPane.setText("");
         applyPreferences(ReadingPreferences.defaults());
+        updateRemoteButtons();
         adjusting = false;
     }
 
     public boolean isShowingBook(String bookId) {
         return currentDocument != null && currentDocument.getBookId().equals(bookId);
-    }
-
-    private String formatSourceLine(BookDocument document) {
-        String source = document.getSourceLocation();
-        if (source == null || source.isBlank()) {
-            return "来源：FishNovel";
-        }
-        return "来源：" + source;
     }
 
     private void renderChapter(int chapterIndex, int contentOffset) {
@@ -245,7 +285,200 @@ public final class BookReaderPanel extends JPanel {
 
         restoreOffset(contentOffset);
         adjusting = false;
+        updateRemoteButtons();
         persistProgress(chapterIndex, contentOffset);
+    }
+
+    private void jumpToChapter() {
+        if (currentDocument == null) {
+            return;
+        }
+        String input = Messages.showInputDialog(
+            project,
+            "\u8bf7\u8f93\u5165\u7ae0\u8282\u7f16\u53f7",
+            "\u8df3\u8f6c\u7ae0\u8282",
+            Messages.getQuestionIcon()
+        );
+        if (input == null) {
+            return;
+        }
+        OptionalInt chapterNumber = ChapterJumpResolver.parsePositiveNumber(input);
+        if (chapterNumber.isEmpty()) {
+            Messages.showWarningDialog(project, "\u8bf7\u8f93\u5165\u5927\u4e8e 0 \u7684\u6570\u5b57\u7ae0\u8282\u7f16\u53f7\u3002", "FishNovel");
+            return;
+        }
+        if (currentDocument.getSourceType() == SourceType.REMOTE_URL) {
+            loadRemoteChapterByNumber(chapterNumber.getAsInt());
+            return;
+        }
+        OptionalInt chapterIndex = ChapterJumpResolver.resolveLocalChapterIndex(currentDocument, input);
+        if (chapterIndex.isEmpty()) {
+            Messages.showWarningDialog(project, "\u627e\u4e0d\u5230\u7b2c " + chapterNumber.getAsInt() + " \u7ae0\u3002", "FishNovel");
+            return;
+        }
+        adjusting = true;
+        chapterSelector.setSelectedIndex(chapterIndex.getAsInt());
+        adjusting = false;
+        renderChapter(chapterIndex.getAsInt(), 0);
+    }
+
+    private void loadRemoteChapter(String url) {
+        if (url == null || url.isBlank()) {
+            return;
+        }
+        if (loading) {
+            return;
+        }
+        setReaderLoading(true);
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel loading web chapter", true) {
+            @Override
+            public void run(ProgressIndicator indicator) {
+                try {
+                    RemoteChapterLoadResult result = projectService.importRemoteChapterFromUrl(url);
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        setReaderLoading(false);
+                        openRemoteChapter(result);
+                    });
+                } catch (IOException ex) {
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        setReaderLoading(false);
+                        Messages.showErrorDialog(project, "网页章节加载失败：\n" + ex.getMessage(), "FishNovel");
+                    });
+                }
+            }
+        });
+    }
+
+    private void loadRemoteChapterByNumber(int chapterNumber) {
+        String currentUrl = remoteNavigation == null ? currentDocument.getSourceLocation() : remoteNavigation.getCurrentUrl();
+        if (currentUrl == null || currentUrl.isBlank()) {
+            Messages.showWarningDialog(project, "\u5f53\u524d\u7f51\u9875\u7ae0\u8282\u4e0d\u652f\u6301\u7f16\u53f7\u8df3\u8f6c\u3002", "FishNovel");
+            return;
+        }
+        if (loading) {
+            return;
+        }
+        setReaderLoading(true);
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel jumping web chapter", true) {
+            @Override
+            public void run(ProgressIndicator indicator) {
+                try {
+                    RemoteChapterLoadResult result = projectService.importRemoteChapterByNumber(currentUrl, chapterNumber);
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        setReaderLoading(false);
+                        openRemoteChapter(result);
+                    });
+                } catch (IOException ex) {
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        setReaderLoading(false);
+                        Messages.showErrorDialog(project, "\u7f51\u9875\u7ae0\u8282\u8df3\u8f6c\u5931\u8d25\uff1a\n" + ex.getMessage(), "FishNovel");
+                    });
+                }
+            }
+        });
+    }
+
+    private void refreshLocalDocument(BookDocument document, ReadingProgress progress) {
+        Path sourcePath;
+        try {
+            sourcePath = resolveLocalSourcePath(document);
+        } catch (IOException ex) {
+            Messages.showErrorDialog(project, "刷新当前小说失败：\n" + ex.getMessage(), "FishNovel");
+            return;
+        }
+
+        setReaderLoading(true);
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel refreshing book", true) {
+            @Override
+            public void run(ProgressIndicator indicator) {
+                try {
+                    BookDocument refreshed = projectService.importBook(sourcePath);
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        setReaderLoading(false);
+                        openBook(refreshed, progress);
+                    });
+                } catch (IOException ex) {
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        setReaderLoading(false);
+                        Messages.showErrorDialog(project, "刷新当前小说失败：\n" + ex.getMessage(), "FishNovel");
+                    });
+                }
+            }
+        });
+    }
+
+    private void refreshRemoteDocument(BookDocument document, ReadingProgress progress) {
+        String currentUrl = remoteNavigation == null ? document.getSourceLocation() : remoteNavigation.getCurrentUrl();
+        if (currentUrl == null || currentUrl.isBlank()) {
+            Messages.showWarningDialog(project, "当前网页章节没有可刷新的地址。", "FishNovel");
+            return;
+        }
+
+        setReaderLoading(true);
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel refreshing web chapter", true) {
+            @Override
+            public void run(ProgressIndicator indicator) {
+                try {
+                    RemoteChapterLoadResult result = projectService.importRemoteChapterFromUrl(currentUrl);
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        setReaderLoading(false);
+                        openBook(result.getDocument(), progress, result.getNavigation());
+                        if (result.hasWarning()) {
+                            Messages.showWarningDialog(project, result.getWarning(), "FishNovel");
+                        }
+                    });
+                } catch (IOException ex) {
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        setReaderLoading(false);
+                        Messages.showErrorDialog(project, "刷新当前网页章节失败：\n" + ex.getMessage(), "FishNovel");
+                    });
+                }
+            }
+        });
+    }
+
+    private Path resolveLocalSourcePath(BookDocument document) throws IOException {
+        if (document.getSourcePath() != null) {
+            return document.getSourcePath();
+        }
+        String sourceLocation = document.getSourceLocation();
+        if (sourceLocation == null || sourceLocation.isBlank()) {
+            throw new IOException("当前小说没有可用的本地文件路径。");
+        }
+        try {
+            return Path.of(sourceLocation);
+        } catch (InvalidPathException ex) {
+            throw new IOException("当前小说保存的本地路径无效：" + sourceLocation, ex);
+        }
+    }
+
+    private ReadingProgress currentProgressSnapshot() {
+        int chapterIndex = Math.max(0, chapterSelector.getSelectedIndex());
+        if (currentDocument.getChapters().isEmpty()) {
+            return ReadingProgress.defaults();
+        }
+        String chapterKey = currentDocument.getChapter(chapterIndex).getTitle();
+        return new ReadingProgress(chapterIndex, currentOffset(), System.currentTimeMillis(), chapterKey);
+    }
+
+    private void setReaderLoading(boolean loading) {
+        this.loading = loading;
+        updateRemoteButtons();
+    }
+
+    private void updateRemoteButtons() {
+        boolean remoteDocument = currentDocument != null
+            && currentDocument.getSourceType() == SourceType.REMOTE_URL
+            && remoteNavigation != null;
+        jumpButton.setEnabled(currentDocument != null && !loading);
+        previousRemoteButton.setVisible(remoteDocument);
+        nextRemoteButton.setVisible(remoteDocument);
+        previousRemoteButton.setEnabled(remoteDocument && remoteNavigation.hasPrevious() && !loading);
+        nextRemoteButton.setEnabled(remoteDocument && remoteNavigation.hasNext() && !loading);
+        if (previousRemoteButton.getParent() != null) {
+            previousRemoteButton.getParent().revalidate();
+            previousRemoteButton.getParent().repaint();
+        }
     }
 
     private void restoreOffset(int contentOffset) {
@@ -360,9 +593,7 @@ public final class BookReaderPanel extends JPanel {
         readerCard.setOpaque(true);
         readerCard.setBorder(BorderFactory.createEmptyBorder());
 
-        titleLabel.setForeground(palette.titleColor);
         chapterMetaLabel.setForeground(palette.metaColor);
-        sourceLabel.setForeground(palette.subtleMetaColor);
 
         scrollPane.setBackground(palette.cardBackground);
         scrollPane.getViewport().setBackground(palette.cardBackground);
@@ -373,6 +604,9 @@ public final class BookReaderPanel extends JPanel {
         textPane.setSelectedTextColor(palette.textColor);
 
         styleButton(bookmarkButton, palette, true);
+        styleButton(jumpButton, palette, false);
+        styleButton(previousRemoteButton, palette, false);
+        styleButton(nextRemoteButton, palette, false);
         styleButton(fontMinusButton, palette, false);
         styleButton(fontPlusButton, palette, false);
         styleButton(spacingMinusButton, palette, false);
@@ -418,7 +652,7 @@ public final class BookReaderPanel extends JPanel {
         button.setOpaque(true);
         Font systemFont = resolveSystemFont();
         button.setFont(systemFont.deriveFont(Font.PLAIN, systemFont.getSize2D()));
-        button.setBorder(JBUI.Borders.empty(7, 12));
+        button.setBorder(JBUI.Borders.empty(5, 8));
         if (primary) {
             button.setBackground(palette.actionBackground);
             button.setForeground(palette.actionForeground);
@@ -576,6 +810,77 @@ public final class BookReaderPanel extends JPanel {
         private static Color contrastFor(Color color) {
             double luminance = color.getRed() * 0.299 + color.getGreen() * 0.587 + color.getBlue() * 0.114;
             return luminance >= 150 ? Color.BLACK : Color.WHITE;
+        }
+    }
+
+    private static final class WrappingFlowLayout extends FlowLayout {
+        private WrappingFlowLayout(int align, int hgap, int vgap) {
+            super(align, hgap, vgap);
+        }
+
+        @Override
+        public Dimension preferredLayoutSize(Container target) {
+            return layoutSize(target, true);
+        }
+
+        @Override
+        public Dimension minimumLayoutSize(Container target) {
+            Dimension minimum = layoutSize(target, false);
+            minimum.width -= getHgap() + 1;
+            return minimum;
+        }
+
+        private Dimension layoutSize(Container target, boolean preferred) {
+            synchronized (target.getTreeLock()) {
+                int targetWidth = target.getWidth();
+                if (targetWidth <= 0) {
+                    targetWidth = Integer.MAX_VALUE;
+                }
+
+                Insets insets = target.getInsets();
+                int horizontalInsetsAndGap = insets.left + insets.right + getHgap() * 2;
+                int maxWidth = targetWidth - horizontalInsetsAndGap;
+                if (maxWidth <= 0) {
+                    maxWidth = Integer.MAX_VALUE;
+                }
+
+                Dimension dimension = new Dimension(0, 0);
+                int rowWidth = 0;
+                int rowHeight = 0;
+
+                for (int index = 0; index < target.getComponentCount(); index++) {
+                    Component component = target.getComponent(index);
+                    if (!component.isVisible()) {
+                        continue;
+                    }
+
+                    Dimension componentSize = preferred ? component.getPreferredSize() : component.getMinimumSize();
+                    if (rowWidth > 0 && rowWidth + getHgap() + componentSize.width > maxWidth) {
+                        addRow(dimension, rowWidth, rowHeight);
+                        rowWidth = 0;
+                        rowHeight = 0;
+                    }
+
+                    if (rowWidth > 0) {
+                        rowWidth += getHgap();
+                    }
+                    rowWidth += componentSize.width;
+                    rowHeight = Math.max(rowHeight, componentSize.height);
+                }
+
+                addRow(dimension, rowWidth, rowHeight);
+                dimension.width += horizontalInsetsAndGap;
+                dimension.height += insets.top + insets.bottom + getVgap() * 2;
+                return dimension;
+            }
+        }
+
+        private void addRow(Dimension dimension, int rowWidth, int rowHeight) {
+            dimension.width = Math.max(dimension.width, rowWidth);
+            if (dimension.height > 0) {
+                dimension.height += getVgap();
+            }
+            dimension.height += rowHeight;
         }
     }
 }

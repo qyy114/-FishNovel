@@ -51,4 +51,38 @@ public class ReadingProgressResolverTest {
 
         Assert.assertEquals(1, ReadingProgressResolver.resolveChapterIndex(document, progress));
     }
+
+    @Test
+    public void shouldResetOffsetWhenStoredChapterKeyDoesNotMatchResolvedChapter() {
+        BookDocument document = new BookDocument(
+            "remote-book",
+            "Green Hill",
+            SourceType.REMOTE_URL,
+            "https://example.com/book/2.html",
+            "html",
+            "hash",
+            null,
+            List.of(new Chapter(0, "Chapter 2", "content", 0))
+        );
+        ReadingProgress progress = new ReadingProgress(0, 88, 1000L, "Chapter 1");
+
+        Assert.assertEquals(0, ReadingProgressResolver.resolveContentOffset(document, progress, 0));
+    }
+
+    @Test
+    public void shouldKeepOffsetWhenStoredChapterKeyMatchesResolvedChapter() {
+        BookDocument document = new BookDocument(
+            "remote-book",
+            "Green Hill",
+            SourceType.REMOTE_URL,
+            "https://example.com/book/2.html",
+            "html",
+            "hash",
+            null,
+            List.of(new Chapter(0, "Chapter 2", "content", 0))
+        );
+        ReadingProgress progress = new ReadingProgress(0, 88, 1000L, "Chapter 2");
+
+        Assert.assertEquals(88, ReadingProgressResolver.resolveContentOffset(document, progress, 0));
+    }
 }

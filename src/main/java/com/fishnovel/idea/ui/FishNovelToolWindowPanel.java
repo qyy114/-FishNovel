@@ -5,11 +5,17 @@ import com.fishnovel.idea.model.BookShelfItem;
 import com.fishnovel.idea.model.Bookmark;
 import com.fishnovel.idea.model.ReadingProgress;
 import com.fishnovel.idea.model.RecentEntry;
+import com.fishnovel.idea.model.SourceType;
 import com.fishnovel.idea.service.FishNovelProjectService;
 import com.fishnovel.idea.service.ReadingStateService;
+import com.fishnovel.idea.source.RemoteChapterLoadResult;
 import com.fishnovel.idea.util.SupportedBookFormats;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
+import com.intellij.openapi.progress.ProgressIndicator;
+import com.intellij.openapi.progress.ProgressManager;
+import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -18,7 +24,6 @@ import com.intellij.ui.components.JBList;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 import java.awt.BorderLayout;
-import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -56,6 +61,8 @@ public final class FishNovelToolWindowPanel extends JPanel {
     private static final String SECTION_LIBRARY = "library";
     private static final String SECTION_RECENT = "recent";
     private static final String SECTION_BOOKMARKS = "bookmarks";
+    private static final int SIDEBAR_EXPANDED_WIDTH = 248;
+    private static final int SIDEBAR_COLLAPSED_WIDTH = 36;
 
     private final Project project;
     private final FishNovelProjectService projectService;
@@ -67,8 +74,22 @@ public final class FishNovelToolWindowPanel extends JPanel {
     private final JBList<BookShelfItem> libraryList = new JBList<>(libraryModel);
     private final JBList<RecentEntry> recentList = new JBList<>(recentModel);
     private final JBList<Bookmark> bookmarkList = new JBList<>(bookmarkModel);
-    private final CardLayout sectionCards = new CardLayout();
-    private final JPanel sectionContent = new JPanel(sectionCards);
+    private final ButtonGroup sectionButtonGroup = new ButtonGroup();
+    private final JPanel sidebarSections = new JPanel();
+    private final JPanel librarySectionContent = new JPanel(new BorderLayout());
+    private final JPanel recentSectionContent = new JPanel(new BorderLayout());
+    private final JPanel bookmarkSectionContent = new JPanel(new BorderLayout());
+
+    private JSplitPane splitPane;
+    private JPanel sidebar;
+    private JButton sidebarToggleButton;
+    private JToggleButton librarySectionButton;
+    private JToggleButton recentSectionButton;
+    private JToggleButton bookmarkSectionButton;
+    private String activeSection = SECTION_LIBRARY;
+    private boolean sidebarCollapsed;
+    private boolean suppressLibraryOpen;
+    private BookShelfItem libraryPopupTarget;
 
     public FishNovelToolWindowPanel(Project project) {
         super(new BorderLayout(0, 12));
@@ -85,15 +106,18 @@ public final class FishNovelToolWindowPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         setBackground(UIUtil.getPanelBackground());
 
-        JButton importButton = createToolbarButton("导入小说", true);
-        JButton onlineReadButton = createToolbarButton("在线阅读", false);
+        JButton importButton = createToolbarButton("导入小说");
+        JButton onlineReadButton = createToolbarButton("在线阅读");
+        JButton refreshButton = createToolbarButton("更新");
         importButton.addActionListener(event -> importBook());
         onlineReadButton.addActionListener(event -> importWebBook());
+        refreshButton.addActionListener(event -> readerPanel.refreshCurrentBook());
 
         JPanel toolbar = new JPanel();
         toolbar.setOpaque(false);
         toolbar.add(importButton);
         toolbar.add(onlineReadButton);
+        toolbar.add(refreshButton);
 
         configureList(libraryList, "暂无书架");
         configureList(recentList, "暂无最近阅读");
@@ -103,7 +127,7 @@ public final class FishNovelToolWindowPanel extends JPanel {
         installBookmarkKeyboardDelete();
 
         libraryList.addListSelectionListener(event -> {
-            if (!event.getValueIsAdjusting()) {
+            if (!event.getValueIsAdjusting() && !suppressLibraryOpen) {
                 BookShelfItem selected = libraryList.getSelectedValue();
                 if (selected != null) {
                     openBookInPanel(selected);
@@ -137,119 +161,160 @@ public final class FishNovelToolWindowPanel extends JPanel {
             createSidebarItem(value.getBookTitle(), value.getChapterTitle(), "书签定位", isSelected)
         );
 
-        sectionContent.setOpaque(false);
-        sectionContent.add(createListScrollPane(libraryList), SECTION_LIBRARY);
-        sectionContent.add(createListScrollPane(recentList), SECTION_RECENT);
-        sectionContent.add(createListScrollPane(bookmarkList), SECTION_BOOKMARKS);
+        sidebar = createSidebar();
 
-        JPanel navigationPanel = createNavigationRail();
-
-        JPanel leftPane = new JPanel(new BorderLayout(12, 0));
-        leftPane.setOpaque(false);
-        leftPane.add(navigationPanel, BorderLayout.WEST);
-        leftPane.add(sectionContent, BorderLayout.CENTER);
-        leftPane.setPreferredSize(new Dimension(360, 520));
-
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPane, readerPanel);
-        splitPane.setResizeWeight(0.34);
+        splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, sidebar, readerPanel);
+        splitPane.setResizeWeight(0.22);
         configureSplitPane(splitPane);
+        applySidebarCollapsedState();
 
         add(toolbar, BorderLayout.NORTH);
         add(splitPane, BorderLayout.CENTER);
     }
 
-    private JPanel createNavigationRail() {
-        JPanel navigationPanel = new JPanel();
-        navigationPanel.setOpaque(false);
-        navigationPanel.setLayout(new BoxLayout(navigationPanel, BoxLayout.Y_AXIS));
-        navigationPanel.setBorder(JBUI.Borders.empty(8, 0, 8, 6));
+    private JPanel createSidebar() {
+        JPanel sidebar = new JPanel(new BorderLayout(0, 4));
+        sidebar.setOpaque(false);
+        sidebar.setBorder(JBUI.Borders.empty(2, 0, 0, 8));
 
-        JBLabel brandLabel = new JBLabel("FishNovel");
-        brandLabel.setFont(brandLabel.getFont().deriveFont(Font.BOLD, 16f));
-        JBLabel subLabel = new JBLabel("摸鱼阅读");
-        subLabel.setForeground(UIUtil.getContextHelpForeground());
-        subLabel.setFont(subLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        sidebarToggleButton = createSidebarToggleButton();
+        JPanel sidebarHeader = new JPanel(new BorderLayout());
+        sidebarHeader.setOpaque(false);
+        sidebarHeader.add(sidebarToggleButton, BorderLayout.WEST);
 
-        JPanel brandPanel = new JPanel();
-        brandPanel.setOpaque(false);
-        brandPanel.setLayout(new BoxLayout(brandPanel, BoxLayout.Y_AXIS));
-        brandPanel.setBorder(JBUI.Borders.empty(0, 8, 12, 0));
-        brandPanel.add(brandLabel);
-        brandPanel.add(Box.createVerticalStrut(2));
-        brandPanel.add(subLabel);
+        sidebarSections.setOpaque(false);
+        sidebarSections.setLayout(new BoxLayout(sidebarSections, BoxLayout.Y_AXIS));
 
-        ButtonGroup buttonGroup = new ButtonGroup();
-        navigationPanel.add(brandPanel);
-        navigationPanel.add(createSectionButton("书架", SECTION_LIBRARY, buttonGroup, true));
-        navigationPanel.add(Box.createVerticalStrut(8));
-        navigationPanel.add(createSectionButton("最近", SECTION_RECENT, buttonGroup, false));
-        navigationPanel.add(Box.createVerticalStrut(8));
-        navigationPanel.add(createSectionButton("书签", SECTION_BOOKMARKS, buttonGroup, false));
-        navigationPanel.add(Box.createVerticalGlue());
-        return navigationPanel;
+        configureSectionContent(librarySectionContent, libraryList);
+        configureSectionContent(recentSectionContent, recentList);
+        configureSectionContent(bookmarkSectionContent, bookmarkList);
+
+        librarySectionButton = createSectionButton("书架", SECTION_LIBRARY, true);
+        recentSectionButton = createSectionButton("最近", SECTION_RECENT, false);
+        bookmarkSectionButton = createSectionButton("书签", SECTION_BOOKMARKS, false);
+
+        sidebarSections.add(librarySectionButton);
+        sidebarSections.add(librarySectionContent);
+        sidebarSections.add(Box.createVerticalStrut(4));
+        sidebarSections.add(recentSectionButton);
+        sidebarSections.add(recentSectionContent);
+        sidebarSections.add(Box.createVerticalStrut(4));
+        sidebarSections.add(bookmarkSectionButton);
+        sidebarSections.add(bookmarkSectionContent);
+
+        sidebar.add(sidebarHeader, BorderLayout.NORTH);
+        sidebar.add(sidebarSections, BorderLayout.CENTER);
+
+        showSidebarSection(SECTION_LIBRARY);
+        return sidebar;
     }
 
-    private JButton createToolbarButton(String text, boolean primary) {
+    private JButton createSidebarToggleButton() {
+        JButton button = new JButton("\u2039");
+        button.setFocusPainted(false);
+        button.setOpaque(true);
+        button.setBorder(JBUI.Borders.empty(4, 8));
+        button.setPreferredSize(new Dimension(30, 28));
+        button.setToolTipText("收起侧边栏");
+        button.addActionListener(event -> toggleSidebarCollapsed());
+        styleSubtleButton(button);
+        return button;
+    }
+
+    private void configureSectionContent(JPanel sectionContent, JList<?> list) {
+        sectionContent.setOpaque(false);
+        sectionContent.setBorder(JBUI.Borders.empty(2, 0, 6, 0));
+        sectionContent.add(createListScrollPane(list), BorderLayout.CENTER);
+        sectionContent.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+    }
+
+    private JButton createToolbarButton(String text) {
         JButton button = new JButton(text);
         button.setFocusPainted(false);
         button.setFont(button.getFont().deriveFont(Font.PLAIN, 12f));
         button.setBorder(JBUI.Borders.empty(8, 14));
         button.setOpaque(true);
+        styleSubtleButton(button);
+        return button;
+    }
 
+    private void styleSubtleButton(JButton button) {
         Color panelBackground = UIUtil.getPanelBackground();
         Color labelColor = UIUtil.getLabelForeground();
-        Color accent = UIUtil.getListSelectionBackground(true);
-        if (accent == null) {
-            accent = isDark(panelBackground) ? new Color(72, 103, 187) : new Color(219, 231, 255);
-        }
-
-        if (primary) {
-            button.setBackground(accent);
-            button.setForeground(contrastFor(accent));
-        } else {
-            button.setBackground(mix(panelBackground, labelColor, 0.06f));
-            button.setForeground(labelColor);
-        }
-        return button;
+        button.setBackground(mix(panelBackground, labelColor, 0.06f));
+        button.setForeground(labelColor);
     }
 
     private void configureList(JBList<?> list, String emptyText) {
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        list.setFixedCellHeight(76);
+        list.setFixedCellHeight(54);
         list.setBorder(BorderFactory.createEmptyBorder());
         list.setBackground(UIUtil.getPanelBackground());
         list.getEmptyText().setText(emptyText);
     }
 
-    private JToggleButton createSectionButton(String text, String sectionKey, ButtonGroup group, boolean selected) {
-        JToggleButton button = new JToggleButton("<html><div style='text-align:center;line-height:1.35'>" + text + "</div></html>");
-        button.setHorizontalAlignment(SwingConstants.CENTER);
+    private JToggleButton createSectionButton(String text, String sectionKey, boolean selected) {
+        JToggleButton button = new JToggleButton(text);
+        button.setHorizontalAlignment(SwingConstants.LEFT);
         button.setVerticalAlignment(SwingConstants.CENTER);
         button.setFocusPainted(false);
-        button.setBorder(JBUI.Borders.empty(14, 18));
-        button.setPreferredSize(new Dimension(82, 72));
-        button.setMaximumSize(new Dimension(82, 72));
+        button.setBorder(JBUI.Borders.empty(7, 10));
+        button.setPreferredSize(new Dimension(220, 34));
+        button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
         button.setOpaque(true);
-        button.setFont(button.getFont().deriveFont(Font.BOLD, 13f));
+        button.setFont(button.getFont().deriveFont(Font.BOLD, 12f));
         styleSectionButton(button, selected);
-        button.addActionListener(event -> {
-            sectionCards.show(sectionContent, sectionKey);
-            refreshNavigationStyles(group);
-        });
-        group.add(button);
+        button.addActionListener(event -> showSidebarSection(sectionKey));
+        sectionButtonGroup.add(button);
         button.setSelected(selected);
-        if (selected) {
-            sectionCards.show(sectionContent, sectionKey);
-        }
         return button;
     }
 
-    private void refreshNavigationStyles(ButtonGroup group) {
-        var elements = group.getElements();
-        while (elements.hasMoreElements()) {
-            JToggleButton button = (JToggleButton) elements.nextElement();
-            styleSectionButton(button, button.isSelected());
+    private void showSidebarSection(String sectionKey) {
+        activeSection = sectionKey;
+        boolean librarySelected = SECTION_LIBRARY.equals(sectionKey);
+        boolean recentSelected = SECTION_RECENT.equals(sectionKey);
+        boolean bookmarkSelected = SECTION_BOOKMARKS.equals(sectionKey);
+
+        librarySectionContent.setVisible(librarySelected);
+        recentSectionContent.setVisible(recentSelected);
+        bookmarkSectionContent.setVisible(bookmarkSelected);
+
+        refreshSectionButton(librarySectionButton, librarySelected);
+        refreshSectionButton(recentSectionButton, recentSelected);
+        refreshSectionButton(bookmarkSectionButton, bookmarkSelected);
+        revalidate();
+        repaint();
+    }
+
+    private void toggleSidebarCollapsed() {
+        sidebarCollapsed = !sidebarCollapsed;
+        applySidebarCollapsedState();
+    }
+
+    private void applySidebarCollapsedState() {
+        if (sidebar == null || sidebarSections == null || sidebarToggleButton == null) {
+            return;
         }
+        int width = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
+        sidebarSections.setVisible(!sidebarCollapsed);
+        sidebarToggleButton.setText(sidebarCollapsed ? "\u203a" : "\u2039");
+        sidebarToggleButton.setToolTipText(sidebarCollapsed ? "展开侧边栏" : "收起侧边栏");
+        sidebar.setPreferredSize(new Dimension(width, 520));
+        sidebar.setMinimumSize(new Dimension(width, 320));
+        if (splitPane != null) {
+            splitPane.setDividerLocation(width);
+        }
+        revalidate();
+        repaint();
+    }
+
+    private void refreshSectionButton(JToggleButton button, boolean selected) {
+        if (button == null) {
+            return;
+        }
+        button.setSelected(selected);
+        styleSectionButton(button, selected);
     }
 
     private void styleSectionButton(JToggleButton button, boolean selected) {
@@ -262,8 +327,8 @@ public final class FishNovelToolWindowPanel extends JPanel {
         button.setBackground(selected ? selectedBackground : panelBackground);
         button.setForeground(selected ? selectedForeground : idleForeground);
         button.setBorder(JBUI.Borders.compound(
-            JBUI.Borders.customLine(selected ? selectedBackground : idleBorder, 1),
-            JBUI.Borders.empty(14, 18)
+            JBUI.Borders.customLine(selected ? selectedBackground : idleBorder, 0, 0, 1, 0),
+            JBUI.Borders.empty(7, 10)
         ));
     }
 
@@ -274,33 +339,41 @@ public final class FishNovelToolWindowPanel extends JPanel {
         Color titleColor = selected ? contrastFor(selectedBackground) : UIUtil.getLabelForeground();
         Color subtitleColor = selected ? titleColor : UIUtil.getContextHelpForeground();
 
-        JPanel panel = new JPanel(new BorderLayout(0, 4));
+        JPanel panel = new JPanel(new BorderLayout(0, 2));
         panel.setOpaque(true);
         panel.setBorder(JBUI.Borders.compound(
             JBUI.Borders.customLine(selected ? selectedBackground : mix(baseBackground, UIUtil.getLabelForeground(), 0.08f), 0, 0, 1, 0),
-            JBUI.Borders.empty(8, 10)
+            JBUI.Borders.empty(6, 10)
         ));
         panel.setBackground(selected ? selectedBackground : baseBackground);
 
         JBLabel titleLabel = new JBLabel(title);
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, titleLabel.getFont().getSize2D()));
         titleLabel.setForeground(titleColor);
+        titleLabel.setToolTipText(title);
 
-        JBLabel subtitleLabel = new JBLabel(subtitle);
-        subtitleLabel.setForeground(subtitleColor);
-        subtitleLabel.setFont(subtitleLabel.getFont().deriveFont(Font.PLAIN, subtitleLabel.getFont().getSize2D() - 1f));
-
-        JBLabel metaLabel = new JBLabel(meta);
-        metaLabel.setForeground(selected ? titleColor : mix(UIUtil.getLabelForeground(), baseBackground, 0.45f));
-        metaLabel.setFont(metaLabel.getFont().deriveFont(Font.PLAIN, metaLabel.getFont().getSize2D() - 2f));
+        String detail = compactDetail(subtitle, meta);
+        JBLabel detailLabel = new JBLabel(detail);
+        detailLabel.setForeground(subtitleColor);
+        detailLabel.setFont(detailLabel.getFont().deriveFont(Font.PLAIN, detailLabel.getFont().getSize2D() - 1f));
+        detailLabel.setToolTipText(detail);
 
         JPanel center = new JPanel(new BorderLayout(0, 2));
         center.setOpaque(false);
         center.add(titleLabel, BorderLayout.NORTH);
-        center.add(subtitleLabel, BorderLayout.CENTER);
-        center.add(metaLabel, BorderLayout.SOUTH);
+        center.add(detailLabel, BorderLayout.CENTER);
         panel.add(center, BorderLayout.CENTER);
         return panel;
+    }
+
+    private String compactDetail(String subtitle, String meta) {
+        if (subtitle == null || subtitle.isBlank()) {
+            return meta == null ? "" : meta;
+        }
+        if (meta == null || meta.isBlank()) {
+            return subtitle;
+        }
+        return subtitle + " · " + meta;
     }
 
     private String shortenLocation(String location) {
@@ -403,7 +476,13 @@ public final class FishNovelToolWindowPanel extends JPanel {
                 if (bounds == null || !bounds.contains(event.getPoint())) {
                     return;
                 }
-                libraryList.setSelectedIndex(index);
+                libraryPopupTarget = libraryModel.getElementAt(index);
+                suppressLibraryOpen = true;
+                try {
+                    libraryList.setSelectedIndex(index);
+                } finally {
+                    suppressLibraryOpen = false;
+                }
                 popupMenu.show(libraryList, event.getX(), event.getY());
             }
         });
@@ -467,7 +546,8 @@ public final class FishNovelToolWindowPanel extends JPanel {
     }
 
     private void deleteSelectedBook(ActionEvent event) {
-        BookShelfItem selected = libraryList.getSelectedValue();
+        BookShelfItem selected = libraryPopupTarget == null ? libraryList.getSelectedValue() : libraryPopupTarget;
+        libraryPopupTarget = null;
         if (selected == null) {
             return;
         }
@@ -507,22 +587,40 @@ public final class FishNovelToolWindowPanel extends JPanel {
             return;
         }
 
-        try {
-            BookDocument document = projectService.importBookFromUrl(url.trim());
-            refreshSidebar();
-            readerPanel.openBook(document);
-        } catch (IOException ex) {
-            Messages.showErrorDialog(project, "网页导入失败：\n" + ex.getMessage(), "FishNovel");
-        }
+        String targetUrl = url.trim();
+        openRemoteUrlInPanel(targetUrl, "网页导入失败：\n");
     }
 
     private void openBookInPanel(BookShelfItem item) {
+        if (item.getSourceType() == SourceType.REMOTE_URL) {
+            openRemoteUrlInPanel(item.getSourceLocation(), "打开网页章节失败：\n");
+            return;
+        }
         try {
             readerPanel.openBook(projectService.reopen(item));
             refreshSidebar();
         } catch (IOException ex) {
             Messages.showErrorDialog(project, "打开小说失败：\n" + ex.getMessage(), "FishNovel");
         }
+    }
+
+    private void openRemoteUrlInPanel(String url, String errorPrefix) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel loading web chapter", true) {
+            @Override
+            public void run(ProgressIndicator indicator) {
+                try {
+                    RemoteChapterLoadResult result = projectService.importRemoteChapterFromUrl(url);
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        refreshSidebar();
+                        readerPanel.openRemoteChapter(result);
+                    });
+                } catch (IOException ex) {
+                    ApplicationManager.getApplication().invokeLater(() ->
+                        Messages.showErrorDialog(project, errorPrefix + ex.getMessage(), "FishNovel")
+                    );
+                }
+            }
+        });
     }
 
     private void openBookmarkInPanel(Bookmark bookmark) {

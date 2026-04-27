@@ -69,7 +69,9 @@ public final class HtmlBookParser implements BookParser {
             titleParts.bookTitle(),
             titleParts.chapterTitle(),
             content.isBlank() ? fullTitle : content,
-            extractNextUrl(document)
+            extractPreviousChapterUrl(document),
+            extractNextPageUrl(document),
+            extractNextChapterUrl(document)
         );
     }
 
@@ -177,15 +179,42 @@ public final class HtmlBookParser implements BookParser {
         return content.isBlank() ? contentRoot.text().trim() : content;
     }
 
-    private String extractNextUrl(Document document) {
-        Element nextLink = document.selectFirst("a:matchesOwn((?i)^\\s*(下一页|下一章|下页|下章|next|next chapter)\\s*$)");
-        if (nextLink == null) {
-            nextLink = document.selectFirst("a[rel=next], .next a, a.next");
+    private String extractPreviousChapterUrl(Document document) {
+        return extractLinkByText(
+            document,
+            "(?i)^\\s*(\\u4e0a\\u4e00\\u7ae0|\\u4e0a\\u7ae0|previous\\s+chapter|prev\\s+chapter)\\s*$"
+        );
+    }
+
+    private String extractNextPageUrl(Document document) {
+        return extractLinkByText(
+            document,
+            "(?i)^\\s*(\\u4e0b\\u4e00\\u9875|\\u4e0b\\u9875|next\\s+page)\\s*$"
+        );
+    }
+
+    private String extractNextChapterUrl(Document document) {
+        String explicitNextChapter = extractLinkByText(
+            document,
+            "(?i)^\\s*(\\u4e0b\\u4e00\\u7ae0|\\u4e0b\\u7ae0|next\\s+chapter)\\s*$"
+        );
+        if (explicitNextChapter != null) {
+            return explicitNextChapter;
         }
-        if (nextLink == null) {
+        Element nextLink = document.selectFirst("a[rel=next], .next a, a.next");
+        return hrefOrNull(nextLink);
+    }
+
+    private String extractLinkByText(Document document, String pattern) {
+        Element link = document.selectFirst("a:matchesOwn(" + pattern + ")");
+        return hrefOrNull(link);
+    }
+
+    private String hrefOrNull(Element link) {
+        if (link == null) {
             return null;
         }
-        String href = nextLink.absUrl("href").trim();
+        String href = link.absUrl("href").trim();
         return href.isBlank() ? null : href;
     }
 
