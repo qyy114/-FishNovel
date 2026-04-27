@@ -4,9 +4,12 @@ import com.fishnovel.idea.model.BookDocument;
 import com.fishnovel.idea.model.BookShelfItem;
 import com.fishnovel.idea.model.SourceType;
 import com.fishnovel.idea.parser.BookParserRegistry;
+import com.fishnovel.idea.parser.TxtBookParser;
 import com.fishnovel.idea.source.RemoteChapterLoadResult;
 import com.fishnovel.idea.source.RemoteChapterSourceAdapter;
 import com.fishnovel.idea.source.RemoteChapterSourceRegistry;
+import com.fishnovel.idea.source.TomatoDownloadResult;
+import com.fishnovel.idea.source.TomatoSourceLocation;
 import com.intellij.openapi.components.Service;
 import com.intellij.openapi.project.Project;
 import java.io.IOException;
@@ -24,6 +27,7 @@ public final class FishNovelProjectService {
     private final BookParserRegistry parserRegistry;
     private final HttpClient httpClient;
     private final RemoteChapterSourceRegistry remoteSourceRegistry;
+    private final TomatoDownloaderService tomatoDownloaderService;
 
     public FishNovelProjectService(Project project) {
         this.parserRegistry = BookParserRegistry.defaultRegistry();
@@ -31,6 +35,7 @@ public final class FishNovelProjectService {
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
         this.remoteSourceRegistry = RemoteChapterSourceRegistry.defaultRegistry();
+        this.tomatoDownloaderService = new TomatoDownloaderService(ReadingStateService.getInstance());
     }
 
     public BookDocument importBook(Path path) throws IOException {
@@ -76,15 +81,47 @@ public final class FishNovelProjectService {
         }
     }
 
+    public boolean hasValidTomatoDownloaderPath() {
+        return tomatoDownloaderService.hasValidDownloaderPath();
+    }
+
+    public void setTomatoDownloaderPath(Path path) {
+        tomatoDownloaderService.setDownloaderPath(path);
+    }
+
+    public BookDocument importTomatoBook(String input) throws IOException {
+        return parseTomatoDownload(tomatoDownloaderService.download(input));
+    }
+
+    public BookDocument refreshTomatoBook(BookDocument document) throws IOException {
+        if (document.getSourceType() != SourceType.TOMATO_TXT) {
+            throw new IOException("Current book is not a Tomato TXT book.");
+        }
+        String bookId = TomatoSourceLocation.parseBookId(document.getSourceLocation())
+            .orElseThrow(() -> new IOException("Invalid Tomato book source: " + document.getSourceLocation()));
+        return parseTomatoDownload(tomatoDownloaderService.refresh(bookId));
+    }
+
     public BookDocument reopen(BookShelfItem item) throws IOException {
         if (item.getSourceType() == SourceType.REMOTE_URL) {
             return importBookFromUrl(item.getSourceLocation());
+        }
+        if (item.getSourceType() == SourceType.TOMATO_TXT) {
+            String bookId = TomatoSourceLocation.parseBookId(item.getSourceLocation())
+                .orElseThrow(() -> new IOException("Invalid Tomato book source: " + item.getSourceLocation()));
+            return parseTomatoDownload(tomatoDownloaderService.cached(bookId));
         }
         Path path = LocalBookPathResolver.resolve(item.getSourceLocation());
         if (!Files.exists(path)) {
             throw new IOException("找不到本地小说文件：" + item.getSourceLocation());
         }
         return importBook(path);
+    }
+
+    private BookDocument parseTomatoDownload(TomatoDownloadResult result) throws IOException {
+        BookDocument document = new TxtBookParser().parseTomato(result.getTxtPath(), result.getBookId(), result.getTitle());
+        ReadingStateService.getInstance().registerBook(document);
+        return document;
     }
 
     public static FishNovelProjectService getInstance(Project project) {

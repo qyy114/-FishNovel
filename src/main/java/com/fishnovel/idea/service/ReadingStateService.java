@@ -83,4 +83,12 @@ public final class ReadingStateService implements PersistentStateComponent<Readi
     public void removeBook(String bookId) {
         store.removeBook(bookId);
     }
+
+    public Optional<String> getTomatoDownloaderPath() {
+        return store.getTomatoDownloaderPath();
+    }
+
+    public void setTomatoDownloaderPath(String tomatoDownloaderPath) {
+        store.setTomatoDownloaderPath(tomatoDownloaderPath);
+    }
 }

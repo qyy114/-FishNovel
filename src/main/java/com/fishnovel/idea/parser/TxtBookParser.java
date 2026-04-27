@@ -3,11 +3,13 @@ package com.fishnovel.idea.parser;
 import com.fishnovel.idea.model.BookDocument;
 import com.fishnovel.idea.model.Chapter;
 import com.fishnovel.idea.model.SourceType;
+import com.fishnovel.idea.source.TomatoSourceLocation;
 import com.fishnovel.idea.util.BookIdGenerator;
 import com.fishnovel.idea.util.TextDecoders;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -29,12 +31,34 @@ public final class TxtBookParser implements BookParser {
     public BookDocument parse(Path path) throws IOException {
         byte[] bytes = Files.readAllBytes(path);
         String text = TextDecoders.decode(bytes).replace("\r\n", "\n");
-        List<Chapter> chapters = splitChapters(text, stripExtension(path.getFileName().toString()));
+        String title = stripExtension(path.getFileName().toString());
+        List<Chapter> chapters = splitChapters(text, title);
         return new BookDocument(
             BookIdGenerator.fromBytes(bytes),
-            stripExtension(path.getFileName().toString()),
+            title,
             SourceType.LOCAL_FILE,
             path.toAbsolutePath().toString(),
+            "txt",
+            BookIdGenerator.fromBytes(bytes),
+            path.toAbsolutePath(),
+            chapters
+        );
+    }
+
+    public BookDocument parseTomato(Path path, String tomatoBookId, String titleHint) throws IOException {
+        String normalizedBookId = TomatoSourceLocation.normalizeBookId(tomatoBookId)
+            .orElseThrow(() -> new IOException("Invalid Tomato book id: " + tomatoBookId));
+        byte[] bytes = Files.readAllBytes(path);
+        String text = TextDecoders.decode(bytes).replace("\r\n", "\n");
+        String title = titleHint == null || titleHint.isBlank()
+            ? stripExtension(path.getFileName().toString())
+            : titleHint.trim();
+        List<Chapter> chapters = splitChapters(text, title);
+        return new BookDocument(
+            BookIdGenerator.fromBytes(("tomato:" + normalizedBookId).getBytes(StandardCharsets.UTF_8)),
+            title,
+            SourceType.TOMATO_TXT,
+            TomatoSourceLocation.toLocation(normalizedBookId),
             "txt",
             BookIdGenerator.fromBytes(bytes),
             path.toAbsolutePath(),

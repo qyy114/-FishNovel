@@ -4,12 +4,13 @@ plugins {
 }
 
 group = "com.fishnovel.idea"
-version = "0.1.5"
+version = "1.0.0"
 
 dependencies {
     implementation("org.jsoup:jsoup:1.18.1")
     implementation("org.commonmark:commonmark:0.24.0")
     implementation("com.positiondev.epublib:epublib-core:3.1")
+    implementation("com.google.code.gson:gson:2.11.0")
 
     testImplementation("junit:junit:4.13.2")
 
@@ -77,7 +78,9 @@ tasks.register<JavaExec>("unitTest") {
         "com.fishnovel.idea.service.ChapterJumpResolverTest",
         "com.fishnovel.idea.service.ReadingStateServiceTest",
         "com.fishnovel.idea.service.ReadingProgressResolverTest",
-        "com.fishnovel.idea.service.FishNovelProjectServiceTest"
+        "com.fishnovel.idea.service.FishNovelProjectServiceTest",
+        "com.fishnovel.idea.source.TomatoSourceLocationTest",
+        "com.fishnovel.idea.service.TomatoDownloaderServiceTest"
     )
 }
 

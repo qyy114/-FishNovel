@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -143,8 +144,10 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
 
         JButton importButton = createToolbarButton("导入小说");
         JButton onlineReadButton = createToolbarButton("在线阅读");
+        JButton tomatoDownloadButton = createToolbarButton("番茄下载");
         importButton.addActionListener(event -> importBook());
         onlineReadButton.addActionListener(event -> importWebBook());
+        tomatoDownloadButton.addActionListener(event -> importTomatoBook());
 
         JPanel toolbar = new JPanel(new BorderLayout(4, 0));
         toolbar.setOpaque(false);
@@ -152,6 +155,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         importToolbarActions.setOpaque(false);
         importToolbarActions.add(importButton);
         importToolbarActions.add(onlineReadButton);
+        importToolbarActions.add(tomatoDownloadButton);
         toolbar.add(topToolbarsToggleButton, BorderLayout.WEST);
         toolbar.add(importToolbarActions, BorderLayout.CENTER);
         updateTopToolbarsCollapsedState();
@@ -655,6 +659,72 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
 
         String targetUrl = url.trim();
         openRemoteUrlInPanel(targetUrl, "网页导入失败：\n");
+    }
+
+    private void importTomatoBook() {
+        if (!ensureTomatoDownloaderPath()) {
+            return;
+        }
+        String input = Messages.showInputDialog(
+            project,
+            "输入番茄小说 book_id、分享链接或详情页链接",
+            "番茄下载",
+            Messages.getQuestionIcon()
+        );
+        if (input == null || input.isBlank()) {
+            return;
+        }
+
+        String request = input.trim();
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel downloading Tomato book", true) {
+            @Override
+            public void run(ProgressIndicator indicator) {
+                try {
+                    BookDocument document = projectService.importTomatoBook(request);
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        refreshSidebar();
+                        readerPanel.openBook(document);
+                    });
+                } catch (IOException ex) {
+                    ApplicationManager.getApplication().invokeLater(() ->
+                        Messages.showErrorDialog(project, "番茄下载失败：\n" + ex.getMessage(), "FishNovel")
+                    );
+                }
+            }
+        });
+    }
+
+    private boolean ensureTomatoDownloaderPath() {
+        if (projectService.hasValidTomatoDownloaderPath()) {
+            return true;
+        }
+
+        FileChooserDescriptor descriptor = new FileChooserDescriptor(true, false, false, false, false, false) {
+            @Override
+            public boolean isFileSelectable(VirtualFile file) {
+                return file != null && !file.isDirectory() && file.getName().toLowerCase(Locale.ROOT).endsWith(".exe");
+            }
+
+            @Override
+            public boolean isFileVisible(VirtualFile file, boolean showHiddenFiles) {
+                return file != null
+                    && (file.isDirectory() || file.getName().toLowerCase(Locale.ROOT).endsWith(".exe"));
+            }
+        };
+        descriptor.setTitle("选择 Tomato-Novel-Downloader");
+        descriptor.setDescription("选择 TomatoNovelDownloader-Win64-*.exe，路径会保存到 FishNovel。");
+        descriptor.setHideIgnored(false);
+
+        VirtualFile selectedFile = FileChooser.chooseFile(descriptor, project, null);
+        if (selectedFile == null) {
+            return false;
+        }
+        if (!selectedFile.getName().toLowerCase(Locale.ROOT).endsWith(".exe")) {
+            Messages.showWarningDialog(project, "请选择 Tomato-Novel-Downloader 的 Windows exe 文件。", "FishNovel");
+            return false;
+        }
+        projectService.setTomatoDownloaderPath(Path.of(selectedFile.getPath()));
+        return true;
     }
 
     private void openBookInPanel(BookShelfItem item) {

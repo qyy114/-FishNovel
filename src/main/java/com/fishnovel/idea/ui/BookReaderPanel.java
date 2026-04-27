@@ -231,6 +231,10 @@ public final class BookReaderPanel extends JPanel {
 
         BookDocument document = currentDocument;
         ReadingProgress progress = currentProgressSnapshot();
+        if (document.getSourceType() == SourceType.TOMATO_TXT) {
+            refreshTomatoDocument(document, progress);
+            return;
+        }
         if (document.getSourceType() == SourceType.REMOTE_URL) {
             refreshRemoteDocument(document, progress);
             return;
@@ -383,6 +387,27 @@ public final class BookReaderPanel extends JPanel {
                     ApplicationManager.getApplication().invokeLater(() -> {
                         setReaderLoading(false);
                         Messages.showErrorDialog(project, "\u7f51\u9875\u7ae0\u8282\u8df3\u8f6c\u5931\u8d25\uff1a\n" + ex.getMessage(), "FishNovel");
+                    });
+                }
+            }
+        });
+    }
+
+    private void refreshTomatoDocument(BookDocument document, ReadingProgress progress) {
+        setReaderLoading(true);
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel refreshing Tomato book", true) {
+            @Override
+            public void run(ProgressIndicator indicator) {
+                try {
+                    BookDocument refreshed = projectService.refreshTomatoBook(document);
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        setReaderLoading(false);
+                        openBook(refreshed, progress);
+                    });
+                } catch (IOException ex) {
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        setReaderLoading(false);
+                        Messages.showErrorDialog(project, "刷新番茄小说失败：\n" + ex.getMessage(), "FishNovel");
                     });
                 }
             }

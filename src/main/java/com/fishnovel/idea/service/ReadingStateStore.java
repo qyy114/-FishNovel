@@ -147,6 +147,17 @@ public final class ReadingStateStore {
         state.recentEntries.removeIf(entry -> bookId.equals(entry.bookId));
     }
 
+    public synchronized Optional<String> getTomatoDownloaderPath() {
+        return Optional.ofNullable(state.tomatoDownloaderPath)
+            .filter(path -> !path.isBlank());
+    }
+
+    public synchronized void setTomatoDownloaderPath(String tomatoDownloaderPath) {
+        state.tomatoDownloaderPath = tomatoDownloaderPath == null || tomatoDownloaderPath.isBlank()
+            ? null
+            : tomatoDownloaderPath;
+    }
+
     private Optional<StoredBookRecord> findRecord(String bookId) {
         return state.books.stream().filter(record -> bookId.equals(record.bookId)).findFirst();
     }
@@ -178,6 +189,7 @@ public final class ReadingStateStore {
     public static final class StoredState {
         public List<StoredBookRecord> books = new ArrayList<>();
         public List<StoredRecentEntry> recentEntries = new ArrayList<>();
+        public String tomatoDownloaderPath;
     }
 
     public static final class StoredBookRecord {
