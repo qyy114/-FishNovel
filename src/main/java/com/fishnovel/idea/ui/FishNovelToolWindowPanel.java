@@ -662,9 +662,6 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     }
 
     private void importTomatoBook() {
-        if (!ensureTomatoDownloaderPath()) {
-            return;
-        }
         String input = Messages.showInputDialog(
             project,
             "输入番茄小说 book_id、分享链接或详情页链接",
@@ -672,6 +669,10 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
             Messages.getQuestionIcon()
         );
         if (input == null || input.isBlank()) {
+            return;
+        }
+
+        if (!ensureTomatoDownloaderPath()) {
             return;
         }
 
