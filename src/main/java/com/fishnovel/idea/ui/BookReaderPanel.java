@@ -76,8 +76,8 @@ public final class BookReaderPanel extends JPanel {
     private final JButton bookmarkButton = new JButton("添加书签");
     private final JButton refreshButton = new JButton("\u66f4\u65b0");
     private final JButton jumpButton = new JButton("\u8df3\u8f6c");
-    private final JButton previousRemoteButton = new JButton("\u4e0a\u4e00\u9875");
-    private final JButton nextRemoteButton = new JButton("\u4e0b\u4e00\u9875");
+    private final JButton previousChapterButton = new JButton("上一章");
+    private final JButton nextChapterButton = new JButton("下一章");
     private final JButton fontMinusButton = new JButton("A-");
     private final JButton fontPlusButton = new JButton("A+");
     private final JButton spacingMinusButton = new JButton("紧凑");
@@ -117,8 +117,8 @@ public final class BookReaderPanel extends JPanel {
         controlPanel.add(chapterSelector);
         controlPanel.add(jumpButton);
         controlPanel.add(refreshButton);
-        previousRemoteButton.setToolTipText("上一章");
-        nextRemoteButton.setToolTipText("下一章");
+        previousChapterButton.setToolTipText("上一章");
+        nextChapterButton.setToolTipText("下一章");
         controlPanel.add(fontMinusButton);
         controlPanel.add(fontPlusButton);
         controlPanel.add(spacingMinusButton);
@@ -146,8 +146,8 @@ public final class BookReaderPanel extends JPanel {
 
         readerCard.add(scrollPane, BorderLayout.CENTER);
         bottomNavigationPanel.setOpaque(false);
-        bottomNavigationPanel.add(previousRemoteButton);
-        bottomNavigationPanel.add(nextRemoteButton);
+        bottomNavigationPanel.add(previousChapterButton);
+        bottomNavigationPanel.add(nextChapterButton);
         readerCard.add(bottomNavigationPanel, BorderLayout.SOUTH);
         readerCard.setPreferredSize(new Dimension(780, 0));
         readerCard.setBorder(BorderFactory.createEmptyBorder());
@@ -190,8 +190,8 @@ public final class BookReaderPanel extends JPanel {
         bookmarkButton.addActionListener(event -> addBookmark());
         refreshButton.addActionListener(event -> refreshCurrentBook());
         jumpButton.addActionListener(event -> jumpToChapter());
-        previousRemoteButton.addActionListener(event -> loadRemoteChapter(remoteNavigation == null ? null : remoteNavigation.getPreviousUrl()));
-        nextRemoteButton.addActionListener(event -> loadRemoteChapter(remoteNavigation == null ? null : remoteNavigation.getNextUrl()));
+        previousChapterButton.addActionListener(event -> navigateChapter(-1));
+        nextChapterButton.addActionListener(event -> navigateChapter(1));
 
         scrollPane.getVerticalScrollBar().addAdjustmentListener(event -> {
             if (!event.getValueIsAdjusting() && currentDocument != null && !adjusting) {
@@ -209,7 +209,11 @@ public final class BookReaderPanel extends JPanel {
     }
 
     public void openRemoteChapter(RemoteChapterLoadResult result) {
-        openBook(result.getDocument(), null, result.getNavigation());
+        openRemoteChapter(result, null);
+    }
+
+    public void openRemoteChapter(RemoteChapterLoadResult result, ReadingProgress overrideProgress) {
+        openBook(result.getDocument(), overrideProgress, result.getNavigation());
         if (result.hasWarning()) {
             Messages.showWarningDialog(project, result.getWarning(), "FishNovel");
         }
@@ -273,7 +277,7 @@ public final class BookReaderPanel extends JPanel {
         chapterSelector.removeAllItems();
         textPane.setText("");
         applyPreferences(ReadingPreferences.defaults());
-        updateRemoteButtons();
+        updateChapterNavigationButtons();
         adjusting = false;
     }
 
@@ -300,8 +304,31 @@ public final class BookReaderPanel extends JPanel {
 
         restoreOffset(contentOffset);
         adjusting = false;
-        updateRemoteButtons();
+        updateChapterNavigationButtons();
         persistProgress(chapterIndex, contentOffset);
+    }
+
+    private void navigateChapter(int delta) {
+        if (currentDocument == null || loading) {
+            return;
+        }
+        if (currentDocument.getSourceType() == SourceType.REMOTE_URL) {
+            String targetUrl = delta < 0
+                ? (remoteNavigation == null ? null : remoteNavigation.getPreviousUrl())
+                : (remoteNavigation == null ? null : remoteNavigation.getNextUrl());
+            loadRemoteChapter(targetUrl);
+            return;
+        }
+
+        int currentIndex = chapterSelector.getSelectedIndex();
+        int targetIndex = currentIndex + delta;
+        if (targetIndex < 0 || targetIndex >= currentDocument.getChapters().size()) {
+            return;
+        }
+        adjusting = true;
+        chapterSelector.setSelectedIndex(targetIndex);
+        adjusting = false;
+        renderChapter(targetIndex, 0);
     }
 
     private void jumpToChapter() {
@@ -499,7 +526,7 @@ public final class BookReaderPanel extends JPanel {
 
     private void setReaderLoading(boolean loading) {
         this.loading = loading;
-        updateRemoteButtons();
+        updateChapterNavigationButtons();
     }
 
     private void updateControlsCollapsedState() {
@@ -508,15 +535,21 @@ public final class BookReaderPanel extends JPanel {
         repaint();
     }
 
-    private void updateRemoteButtons() {
-        boolean remoteDocument = currentDocument != null
+    private void updateChapterNavigationButtons() {
+        boolean hasDocument = currentDocument != null;
+        boolean remoteDocument = hasDocument
             && currentDocument.getSourceType() == SourceType.REMOTE_URL
             && remoteNavigation != null;
-        jumpButton.setEnabled(currentDocument != null && !loading);
-        refreshButton.setEnabled(currentDocument != null && !loading);
-        bottomNavigationPanel.setVisible(remoteDocument);
-        previousRemoteButton.setEnabled(remoteDocument && remoteNavigation.hasPrevious() && !loading);
-        nextRemoteButton.setEnabled(remoteDocument && remoteNavigation.hasNext() && !loading);
+        int selectedIndex = chapterSelector.getSelectedIndex();
+        int chapterCount = hasDocument ? currentDocument.getChapters().size() : 0;
+        boolean hasPrevious = remoteDocument ? remoteNavigation.hasPrevious() : selectedIndex > 0;
+        boolean hasNext = remoteDocument ? remoteNavigation.hasNext() : selectedIndex >= 0 && selectedIndex < chapterCount - 1;
+
+        jumpButton.setEnabled(hasDocument && !loading);
+        refreshButton.setEnabled(hasDocument && !loading);
+        bottomNavigationPanel.setVisible(hasDocument);
+        previousChapterButton.setEnabled(hasDocument && hasPrevious && !loading);
+        nextChapterButton.setEnabled(hasDocument && hasNext && !loading);
         if (bottomNavigationPanel.getParent() != null) {
             bottomNavigationPanel.getParent().revalidate();
             bottomNavigationPanel.getParent().repaint();
@@ -648,8 +681,8 @@ public final class BookReaderPanel extends JPanel {
         styleButton(bookmarkButton, palette, true);
         styleButton(refreshButton, palette, false);
         styleButton(jumpButton, palette, false);
-        styleButton(previousRemoteButton, palette, false);
-        styleButton(nextRemoteButton, palette, false);
+        styleButton(previousChapterButton, palette, false);
+        styleButton(nextChapterButton, palette, false);
         styleButton(fontMinusButton, palette, false);
         styleButton(fontPlusButton, palette, false);
         styleButton(spacingMinusButton, palette, false);

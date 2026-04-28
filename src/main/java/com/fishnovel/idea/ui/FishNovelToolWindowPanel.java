@@ -762,22 +762,46 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
 
     private void openBookmarkInPanel(Bookmark bookmark) {
         stateService.findBook(bookmark.getBookId()).ifPresent(item -> {
+            if (item.getSourceType() == SourceType.REMOTE_URL) {
+                openRemoteBookmarkInPanel(item.getSourceLocation(), bookmark);
+                return;
+            }
             try {
                 BookDocument document = projectService.reopen(item);
-                readerPanel.openBook(
-                    document,
-                    new ReadingProgress(
-                        bookmark.getChapterIndex(),
-                        bookmark.getContentOffset(),
-                        System.currentTimeMillis(),
-                        bookmark.getChapterTitle()
-                    )
-                );
+                readerPanel.openBook(document, progressFromBookmark(bookmark));
                 refreshSidebar();
             } catch (IOException ex) {
                 Messages.showErrorDialog(project, "跳转书签失败：\n" + ex.getMessage(), "FishNovel");
             }
         });
+    }
+
+    private void openRemoteBookmarkInPanel(String url, Bookmark bookmark) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel loading web chapter", true) {
+            @Override
+            public void run(ProgressIndicator indicator) {
+                try {
+                    RemoteChapterLoadResult result = projectService.importRemoteChapterFromUrl(url);
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        readerPanel.openRemoteChapter(result, progressFromBookmark(bookmark));
+                        refreshSidebar();
+                    });
+                } catch (IOException ex) {
+                    ApplicationManager.getApplication().invokeLater(() ->
+                        Messages.showErrorDialog(project, "跳转书签失败：\n" + ex.getMessage(), "FishNovel")
+                    );
+                }
+            }
+        });
+    }
+
+    private ReadingProgress progressFromBookmark(Bookmark bookmark) {
+        return new ReadingProgress(
+            bookmark.getChapterIndex(),
+            bookmark.getContentOffset(),
+            System.currentTimeMillis(),
+            bookmark.getChapterTitle()
+        );
     }
 
     private void refreshSidebar() {

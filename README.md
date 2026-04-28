@@ -11,7 +11,7 @@ FishNovel turns IntelliJ IDEA into a lightweight novel reader with local multi-f
 - 本地阅读：支持 `TXT`、`EPUB`、`Markdown`、`HTML`。
 - 网页阅读：输入章节 URL 后读取当前章节，同章分页会自动合并，上一章/下一章按需加载。
 - 番茄下载：输入番茄小说 `book_id`、分享链接或详情页链接，调用本机 Tomato-Novel-Downloader 下载 TXT，然后使用 FishNovel 的 TXT 阅读器打开。
-- 阅读控制：支持章节下拉、数字跳转、上一页/下一页、刷新、字号、行距、主题和书签。
+- 阅读控制：支持章节下拉、数字跳转、上一章/下一章、刷新、字号、行距、主题和书签。
 - 阅读状态：自动保存书架、最近阅读、书签、阅读进度和阅读样式。
 - 低干扰界面：工具栏和侧边栏可收起，阅读区不显示小说名，保留紧凑章节进度。
 - 老板键：插件打开时按任意键可隐藏工具窗口；关闭状态下不影响 IDE。
