@@ -70,7 +70,6 @@ FishNovel 不内置番茄小说隐藏接口，也不绕过登录、验证码、�
 - 来源项目：`zhongbai2333/Tomato-Novel-Downloader`
 - 来源地址：https://github.com/zhongbai2333/Tomato-Novel-Downloader/releases/tag/v2.4.7
 - 下载资产：`TomatoNovelDownloader-Win64-v2.4.7.exe`
-- SHA256：`55D08B924C8E6A522F57DC4F32E4F8FD4FC0468A15CABEBC09CBCFC71C00752B`
 
 资源占用策略：
 
