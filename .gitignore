@@ -4,3 +4,10 @@
 .intellijPlatform
 .kotlin
 build
+certificates/
+AI_HANDOFF.md
+TomatoNovelDownloader*.exe
+*.p12
+*.jks
+*.keystore
+signing.local.properties

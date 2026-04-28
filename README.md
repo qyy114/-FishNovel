@@ -22,7 +22,7 @@ FishNovel turns IntelliJ IDEA into a lightweight novel reader with local multi-f
 2. 展开顶部工具栏。
 3. 点击 `导入小说` 选择本地文件，或点击 `在线阅读` 输入网页章节 URL。
 4. 点击 `番茄下载` 输入番茄小说 ID 或链接。
-5. 首次使用番茄下载时，选择项目根目录中的 `TomatoNovelDownloader-Win64-v2.4.7.exe`。
+5. 首次使用番茄下载时，从官方 Release 下载 `TomatoNovelDownloader-Win64-v2.4.7.exe` 并在文件选择器中选中它。
 6. 下载完成后会自动打开 TXT 阅读；后续再次下载不会重复询问 exe 路径。
 7. 对番茄书点击 `更新` 时，会重新下载并尽量保留原阅读进度；失败时保留当前正文。
 
@@ -58,15 +58,14 @@ if (Test-Path $target) {
 Expand-Archive -LiteralPath $zipPath -DestinationPath $pluginRoot -Force
 ```
 
-安装完成后重新打开 IDEA。首次使用 `番茄下载` 时，如果还没有保存下载器路径，请选择仓库根目录中的 `TomatoNovelDownloader-Win64-v2.4.7.exe`。
+安装完成后重新打开 IDEA。首次使用 `番茄下载` 时，如果还没有保存下载器路径，请先从官方 Release 下载 `TomatoNovelDownloader-Win64-v2.4.7.exe`，然后在文件选择器中选中该 exe。
 
 ## 番茄下载说明
 
 FishNovel 不内置番茄小说隐藏接口，也不绕过登录、验证码、付费或访问限制。番茄正文下载由第三方工具 Tomato-Novel-Downloader 完成，FishNovel 只负责启动本机下载器、等待 TXT 生成、打开缓存 TXT。
 
-本仓库随附的下载器文件：
+番茄下载器获取方式：
 
-- 文件：`TomatoNovelDownloader-Win64-v2.4.7.exe`
 - 来源项目：`zhongbai2333/Tomato-Novel-Downloader`
 - 来源地址：https://github.com/zhongbai2333/Tomato-Novel-Downloader/releases/tag/v2.4.7
 - 下载资产：`TomatoNovelDownloader-Win64-v2.4.7.exe`
