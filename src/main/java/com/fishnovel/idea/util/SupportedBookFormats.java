@@ -21,20 +21,10 @@ public final class SupportedBookFormats {
     }
 
     public static FileChooserDescriptor createImportDescriptor(String title) {
-        FileChooserDescriptor descriptor = new FileChooserDescriptor(true, false, false, false, false, false) {
-            @Override
-            public boolean isFileSelectable(VirtualFile file) {
-                return file != null && !file.isDirectory() && isSupportedFile(file);
-            }
-
-            @Override
-            public boolean isFileVisible(VirtualFile file, boolean showHiddenFiles) {
-                return file != null && (file.isDirectory() || isSupportedFile(file));
-            }
-        };
-        descriptor.setTitle(title);
-        descriptor.setDescription("支持 TXT、EPUB、Markdown、HTML（.html / .htm）");
-        descriptor.setHideIgnored(false);
-        return descriptor;
+        return new FileChooserDescriptor(true, false, false, false, false, false)
+            .withTitle(title)
+            .withDescription("支持 TXT、EPUB、Markdown、HTML（.html / .htm）")
+            .withHideIgnored(false)
+            .withFileFilter(SupportedBookFormats::isSupportedFile);
     }
 }

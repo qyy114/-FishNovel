@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.fishnovel.idea"
-version = "1.0.0"
+version = "1.0.1"
 
 val signingProperties = Properties().apply {
     val file = layout.projectDirectory.file("certificates/signing.local.properties").asFile
@@ -45,6 +45,7 @@ intellijPlatform {
         """.trimIndent()
         changeNotes = """
             <ul>
+                <li>1.0.1: Fixed previous and next chapter navigation visibility and behavior.</li>
                 <li>Initial 1.0.0 release with local TXT, EPUB, Markdown, and HTML reading.</li>
                 <li>Added web chapter reading, progress memory, bookmarks, history, and theme preferences.</li>
                 <li>Added Tomato TXT cache import support.</li>

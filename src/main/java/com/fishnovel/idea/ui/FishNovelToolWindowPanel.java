@@ -700,21 +700,12 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
             return true;
         }
 
-        FileChooserDescriptor descriptor = new FileChooserDescriptor(true, false, false, false, false, false) {
-            @Override
-            public boolean isFileSelectable(VirtualFile file) {
-                return file != null && !file.isDirectory() && file.getName().toLowerCase(Locale.ROOT).endsWith(".exe");
-            }
-
-            @Override
-            public boolean isFileVisible(VirtualFile file, boolean showHiddenFiles) {
-                return file != null
-                    && (file.isDirectory() || file.getName().toLowerCase(Locale.ROOT).endsWith(".exe"));
-            }
-        };
-        descriptor.setTitle("选择 Tomato-Novel-Downloader");
-        descriptor.setDescription("选择 TomatoNovelDownloader-Win64-*.exe，路径会保存到 FishNovel。");
-        descriptor.setHideIgnored(false);
+        FileChooserDescriptor descriptor = new FileChooserDescriptor(true, false, false, false, false, false)
+            .withTitle("选择 Tomato-Novel-Downloader")
+            .withDescription("选择 TomatoNovelDownloader-Win64-*.exe，路径会保存到 FishNovel。")
+            .withHideIgnored(false)
+            .withFileFilter(file -> file != null
+                && (file.isDirectory() || file.getName().toLowerCase(Locale.ROOT).endsWith(".exe")));
 
         VirtualFile selectedFile = FileChooser.chooseFile(descriptor, project, null);
         if (selectedFile == null) {
