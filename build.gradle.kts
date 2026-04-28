@@ -25,17 +25,27 @@ intellijPlatform {
         version = project.version.toString()
         ideaVersion {
             sinceBuild = "253"
-            untilBuild = "253.*"
         }
         description = """
-            FishNovel turns IntelliJ IDEA into a discreet novel reader with local multi-format support,
+            FishNovel turns IntelliJ IDEA into a lightweight novel reader with local multi-format support,
             tool-window reading, progress memory, bookmarks, history, and web novel reading.
+        """.trimIndent()
+        changeNotes = """
+            <ul>
+                <li>Initial 1.0.0 release with local TXT, EPUB, Markdown, and HTML reading.</li>
+                <li>Added web chapter reading, progress memory, bookmarks, history, and theme preferences.</li>
+                <li>Added Tomato TXT cache import support.</li>
+            </ul>
         """.trimIndent()
         vendor {
             name = "FishNovel"
-            email = "support@fishnovel.local"
-            url = "https://gitee.com/"
+            url = "https://gitee.com/qyy114/fish-novelFishNovel"
         }
+    }
+
+    publishing {
+        token = providers.gradleProperty("intellijPlatformPublishingToken").orElse("")
+        channels = listOf("default")
     }
 }
 

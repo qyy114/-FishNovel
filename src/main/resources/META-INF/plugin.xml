@@ -1,10 +1,10 @@
 <idea-plugin>
     <id>com.fishnovel.idea</id>
     <name>FishNovel</name>
-    <vendor email="support@fishnovel.local" url="https://gitee.com/">FishNovel</vendor>
+    <vendor url="https://gitee.com/qyy114/fish-novelFishNovel">FishNovel</vendor>
 
     <description><![CDATA[
-        FishNovel turns IntelliJ IDEA into a discreet novel reader with local multi-format support,
+        FishNovel turns IntelliJ IDEA into a lightweight novel reader with local multi-format support,
         reading progress memory, bookmarks, history, and web novel reading.
     ]]></description>
 

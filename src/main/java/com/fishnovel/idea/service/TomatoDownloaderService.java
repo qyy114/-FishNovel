@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 public final class TomatoDownloaderService {
@@ -48,6 +49,7 @@ public final class TomatoDownloaderService {
     private final long startTimeoutMillis;
     private final long jobTimeoutMillis;
     private final boolean externalServer;
+    private final Path downloaderPathOverride;
 
     private URI serverBaseUri;
     private Process sidecarProcess;
@@ -61,7 +63,8 @@ public final class TomatoDownloaderService {
             new ProcessSidecarLauncher(),
             DEFAULT_POLL_INTERVAL_MILLIS,
             DEFAULT_START_TIMEOUT_MILLIS,
-            DEFAULT_JOB_TIMEOUT_MILLIS
+            DEFAULT_JOB_TIMEOUT_MILLIS,
+            null
         );
     }
 
@@ -75,6 +78,30 @@ public final class TomatoDownloaderService {
         long startTimeoutMillis,
         long jobTimeoutMillis
     ) {
+        this(
+            stateService,
+            dataDir,
+            serverBaseUri,
+            httpClient,
+            sidecarLauncher,
+            pollIntervalMillis,
+            startTimeoutMillis,
+            jobTimeoutMillis,
+            null
+        );
+    }
+
+    TomatoDownloaderService(
+        ReadingStateService stateService,
+        Path dataDir,
+        URI serverBaseUri,
+        HttpClient httpClient,
+        SidecarLauncher sidecarLauncher,
+        long pollIntervalMillis,
+        long startTimeoutMillis,
+        long jobTimeoutMillis,
+        Path downloaderPathOverride
+    ) {
         this.stateService = stateService;
         this.dataDir = dataDir.toAbsolutePath().normalize();
         this.libraryDir = this.dataDir.resolve("library").normalize();
@@ -86,6 +113,7 @@ public final class TomatoDownloaderService {
         this.startTimeoutMillis = startTimeoutMillis;
         this.jobTimeoutMillis = jobTimeoutMillis;
         this.externalServer = serverBaseUri != null;
+        this.downloaderPathOverride = downloaderPathOverride == null ? null : downloaderPathOverride.toAbsolutePath().normalize();
     }
 
     public boolean hasValidDownloaderPath() {
@@ -95,24 +123,41 @@ public final class TomatoDownloaderService {
     }
 
     public Optional<Path> getDownloaderPath() {
+        if (downloaderPathOverride != null) {
+            return Optional.of(downloaderPathOverride);
+        }
+        if (stateService == null) {
+            return Optional.empty();
+        }
         return stateService.getTomatoDownloaderPath()
             .map(Path::of)
             .map(path -> path.toAbsolutePath().normalize());
     }
 
     public void setDownloaderPath(Path path) {
+        if (stateService == null) {
+            throw new IllegalStateException("Tomato downloader path storage is not available.");
+        }
         stateService.setTomatoDownloaderPath(path == null ? null : path.toAbsolutePath().normalize().toString());
     }
 
-    public TomatoDownloadResult download(String input) throws IOException {
-        return downloadInternal(input, null);
+    public synchronized TomatoDownloadResult download(String input) throws IOException {
+        try {
+            return downloadInternal(input, null);
+        } finally {
+            stopSidecarProcess();
+        }
     }
 
-    public TomatoDownloadResult refresh(String bookId) throws IOException {
+    public synchronized TomatoDownloadResult refresh(String bookId) throws IOException {
         String normalizedBookId = TomatoSourceLocation.normalizeBookId(bookId)
             .orElseThrow(() -> new IOException("Invalid Tomato book id: " + bookId));
         cleanupBookCache(normalizedBookId);
-        return downloadInternal(normalizedBookId, normalizedBookId);
+        try {
+            return downloadInternal(normalizedBookId, normalizedBookId);
+        } finally {
+            stopSidecarProcess();
+        }
     }
 
     public TomatoDownloadResult cached(String bookId) throws IOException {
@@ -225,6 +270,29 @@ public final class TomatoDownloaderService {
                 Thread.currentThread().interrupt();
             }
             return false;
+        }
+    }
+
+    private void stopSidecarProcess() {
+        if (externalServer) {
+            return;
+        }
+
+        Process process = sidecarProcess;
+        sidecarProcess = null;
+        serverBaseUri = null;
+        if (process == null || !process.isAlive()) {
+            return;
+        }
+
+        process.destroy();
+        try {
+            if (!process.waitFor(5, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+            }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            process.destroyForcibly();
         }
     }
 

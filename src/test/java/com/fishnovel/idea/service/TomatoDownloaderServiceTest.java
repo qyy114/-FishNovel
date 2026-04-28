@@ -4,6 +4,7 @@ import com.fishnovel.idea.source.TomatoDownloadResult;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -14,6 +15,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -104,6 +107,70 @@ public class TomatoDownloaderServiceTest {
     }
 
     @Test
+    public void shouldStopManagedSidecarAfterDownloadCompletes() throws Exception {
+        Path dataDir = Files.createTempDirectory("fishnovel-tomato-managed");
+        Path libraryDir = dataDir.resolve("library");
+        Path executable = Files.createTempFile("TomatoNovelDownloader-Win64-test", ".exe");
+        AtomicReference<FakeProcess> processRef = new AtomicReference<>();
+        AtomicReference<HttpServer> serverRef = new AtomicReference<>();
+
+        TomatoDownloaderService service = new TomatoDownloaderService(
+            null,
+            dataDir,
+            null,
+            HttpClient.newHttpClient(),
+            (ignoredExecutable, ignoredDataDir, port, logFile) -> {
+                Assert.assertEquals(executable.toAbsolutePath().normalize(), ignoredExecutable.toAbsolutePath().normalize());
+                HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
+                server.createContext("/", exchange -> {
+                    String method = exchange.getRequestMethod();
+                    String path = exchange.getRequestURI().getPath();
+                    if ("GET".equals(method) && "/api/status".equals(path)) {
+                        writeJson(exchange, "{}");
+                        return;
+                    }
+                    if ("POST".equals(method) && "/api/jobs".equals(path)) {
+                        readBody(exchange);
+                        Files.createDirectories(libraryDir);
+                        Files.writeString(
+                            libraryDir.resolve("\u6253\u5f00\u5373\u5173\u95ed.txt"),
+                            "\u7b2c\u4e00\u7ae0 \u5f00\u59cb\ncontent",
+                            StandardCharsets.UTF_8
+                        );
+                        writeJson(exchange, "{\"id\":8,\"book_id\":\"7423591956359416856\"}");
+                        return;
+                    }
+                    if ("GET".equals(method) && "/api/jobs".equals(path)) {
+                        writeJson(exchange, "{\"items\":[{\"state\":\"done\",\"title\":\"\u6253\u5f00\u5373\u5173\u95ed\",\"message\":null,\"format_options\":[],\"book_name_options\":[]}]}");
+                        return;
+                    }
+                    writeJson(exchange, 404, "{\"error\":\"not found\"}");
+                });
+                server.start();
+                serverRef.set(server);
+                FakeProcess process = new FakeProcess(() -> {
+                    HttpServer runningServer = serverRef.get();
+                    if (runningServer != null) {
+                        runningServer.stop(0);
+                    }
+                });
+                processRef.set(process);
+                return process;
+            },
+            1L,
+            500L,
+            2_000L,
+            executable
+        );
+
+        TomatoDownloadResult result = service.download("7423591956359416856");
+
+        Assert.assertEquals("7423591956359416856", result.getBookId());
+        Assert.assertNotNull(processRef.get());
+        Assert.assertFalse(processRef.get().isAlive());
+    }
+
+    @Test
     public void shouldOnlyCleanFilesInsideTomatoDataDirectory() throws Exception {
         Path dataDir = Files.createTempDirectory("fishnovel-tomato-clean");
         Path libraryDir = dataDir.resolve("library");
@@ -154,6 +221,69 @@ public class TomatoDownloaderServiceTest {
         exchange.sendResponseHeaders(status, bytes.length);
         try (OutputStream output = exchange.getResponseBody()) {
             output.write(bytes);
+        }
+    }
+
+    private static final class FakeProcess extends Process {
+        private final Runnable onDestroy;
+        private volatile boolean alive = true;
+
+        private FakeProcess(Runnable onDestroy) {
+            this.onDestroy = onDestroy;
+        }
+
+        @Override
+        public OutputStream getOutputStream() {
+            return OutputStream.nullOutputStream();
+        }
+
+        @Override
+        public InputStream getInputStream() {
+            return InputStream.nullInputStream();
+        }
+
+        @Override
+        public InputStream getErrorStream() {
+            return InputStream.nullInputStream();
+        }
+
+        @Override
+        public int waitFor() {
+            alive = false;
+            return 0;
+        }
+
+        @Override
+        public boolean waitFor(long timeout, TimeUnit unit) {
+            return !alive;
+        }
+
+        @Override
+        public int exitValue() {
+            if (alive) {
+                throw new IllegalThreadStateException("Process is still running.");
+            }
+            return 0;
+        }
+
+        @Override
+        public void destroy() {
+            if (!alive) {
+                return;
+            }
+            alive = false;
+            onDestroy.run();
+        }
+
+        @Override
+        public Process destroyForcibly() {
+            destroy();
+            return this;
+        }
+
+        @Override
+        public boolean isAlive() {
+            return alive;
         }
     }
 }
