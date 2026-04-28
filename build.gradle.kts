@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("java")
     id("org.jetbrains.intellij.platform")
@@ -5,6 +7,17 @@ plugins {
 
 group = "com.fishnovel.idea"
 version = "1.0.0"
+
+val signingProperties = Properties().apply {
+    val file = layout.projectDirectory.file("certificates/signing.local.properties").asFile
+    if (file.isFile) {
+        file.inputStream().use { load(it) }
+    }
+}
+
+fun localSecret(name: String) = providers.gradleProperty(name)
+    .orElse(providers.environmentVariable(name))
+    .orElse(signingProperties.getProperty(name) ?: "")
 
 dependencies {
     implementation("org.jsoup:jsoup:1.18.1")
@@ -46,6 +59,14 @@ intellijPlatform {
     publishing {
         token = providers.gradleProperty("intellijPlatformPublishingToken").orElse("")
         channels = listOf("default")
+    }
+
+    signing {
+        keyStore.set(layout.projectDirectory.file("certificates/fishnovel-signing.p12"))
+        keyStorePassword.set(localSecret("intellijPlatformSigningPassword"))
+        keyStoreKeyAlias.set("fishnovel")
+        keyStoreType.set("PKCS12")
+        certificateChainFile.set(layout.projectDirectory.file("certificates/fishnovel-chain.crt"))
     }
 }
 
