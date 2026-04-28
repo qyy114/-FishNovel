@@ -26,6 +26,40 @@ FishNovel turns IntelliJ IDEA into a lightweight novel reader with local multi-f
 6. 下载完成后会自动打开 TXT 阅读；后续再次下载不会重复询问 exe 路径。
 7. 对番茄书点击 `更新` 时，会重新下载并尽量保留原阅读进度；失败时保留当前正文。
 
+## 本地安装教程
+
+### 方式一：从 IDEA 界面安装
+
+1. 运行 `.\gradlew.bat buildPlugin --console=plain`。
+2. 找到插件包：`build/distributions/FishNovel-1.0.0.zip`。
+3. 打开 IntelliJ IDEA。
+4. 进入 `Settings -> Plugins`。
+5. 点击插件页右上角齿轮按钮，选择 `Install Plugin from Disk...`。
+6. 选择 `FishNovel-1.0.0.zip`。
+7. 按提示重启 IDEA。
+8. 重启后在 `Tools -> 打开 FishNovel` 打开插件。
+
+### 方式二：手动复制到 IDEA 插件目录
+
+适合需要直接覆盖本机插件目录的情况。执行前建议关闭 IDEA，避免 Windows 锁住旧版 jar。
+
+```powershell
+.\gradlew.bat buildPlugin --console=plain
+
+$pluginRoot = "$env:APPDATA\JetBrains\IntelliJIdea2025.3\plugins"
+$zipPath = Join-Path (Get-Location) "build\distributions\FishNovel-1.0.0.zip"
+$target = Join-Path $pluginRoot "FishNovel"
+$backup = Join-Path $pluginRoot ("FishNovel.backup-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
+
+if (Test-Path $target) {
+    Move-Item -LiteralPath $target -Destination $backup
+}
+
+Expand-Archive -LiteralPath $zipPath -DestinationPath $pluginRoot -Force
+```
+
+安装完成后重新打开 IDEA。首次使用 `番茄下载` 时，如果还没有保存下载器路径，请选择仓库根目录中的 `TomatoNovelDownloader-Win64-v2.4.7.exe`。
+
 ## 番茄下载说明
 
 FishNovel 不内置番茄小说隐藏接口，也不绕过登录、验证码、付费或访问限制。番茄正文下载由第三方工具 Tomato-Novel-Downloader 完成，FishNovel 只负责启动本机下载器、等待 TXT 生成、打开缓存 TXT。
