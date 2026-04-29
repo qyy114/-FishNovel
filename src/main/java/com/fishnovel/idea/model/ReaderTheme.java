@@ -1,5 +1,7 @@
 package com.fishnovel.idea.model;
 
+import com.fishnovel.idea.FishNovelBundle;
+
 public enum ReaderTheme {
     AUTO,
     PAPER,
@@ -18,10 +20,10 @@ public enum ReaderTheme {
     @Override
     public String toString() {
         return switch (this) {
-            case AUTO -> "跟随系统";
-            case PAPER -> "纸张";
-            case DARK -> "夜间";
-            case FOREST -> "护眼";
+            case AUTO -> FishNovelBundle.message("reader.theme.auto");
+            case PAPER -> FishNovelBundle.message("reader.theme.paper");
+            case DARK -> FishNovelBundle.message("reader.theme.dark");
+            case FOREST -> FishNovelBundle.message("reader.theme.forest");
         };
     }
 }

@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.fishnovel.idea"
-version = "1.0.2"
+version = "1.0.3"
 
 val signingProperties = Properties().apply {
     val file = layout.projectDirectory.file("certificates/signing.local.properties").asFile
@@ -45,6 +45,7 @@ intellijPlatform {
         """.trimIndent()
         changeNotes = """
             <ul>
+                <li>1.0.3: Added automatic UI localization with English fallback and Simplified Chinese translations.</li>
                 <li>1.0.2: Refined the collapsed reader toolbar and sidebar toggle layout for a cleaner reading surface.</li>
                 <li>1.0.1: Fixed previous and next chapter navigation visibility and behavior.</li>
                 <li>Initial 1.0.0 release with local TXT, EPUB, Markdown, and HTML reading.</li>
@@ -103,6 +104,7 @@ tasks.register<JavaExec>("unitTest") {
     classpath = testSourceSet.runtimeClasspath
     mainClass.set("org.junit.runner.JUnitCore")
     args(
+        "com.fishnovel.idea.FishNovelBundleTest",
         "com.fishnovel.idea.parser.BookParserRegistryTest",
         "com.fishnovel.idea.parser.RemoteHtmlBookCrawlerTest",
         "com.fishnovel.idea.parser.TxtBookParserTest",

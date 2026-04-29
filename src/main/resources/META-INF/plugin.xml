@@ -2,6 +2,7 @@
     <id>com.fishnovel.idea</id>
     <name>FishNovel</name>
     <vendor url="https://gitee.com/qyy114/fish-novelFishNovel">FishNovel</vendor>
+    <resource-bundle>messages.FishNovelBundle</resource-bundle>
 
     <description><![CDATA[
         FishNovel turns IntelliJ IDEA into a lightweight novel reader with local multi-format support,
@@ -21,9 +22,7 @@
 
     <actions>
         <action id="FishNovel.OpenToolWindowAction"
-                class="com.fishnovel.idea.action.OpenFishNovelToolWindowAction"
-                text="打开 FishNovel"
-                description="打开 FishNovel 阅读工具窗口">
+                class="com.fishnovel.idea.action.OpenFishNovelToolWindowAction">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
     </actions>

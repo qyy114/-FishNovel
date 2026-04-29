@@ -31,11 +31,11 @@ FishNovel turns IntelliJ IDEA into a lightweight novel reader with local multi-f
 ### 方式一：从 IDEA 界面安装
 
 1. 运行 `.\gradlew.bat buildPlugin --console=plain`。
-2. 找到插件包：`build/distributions/FishNovel-1.0.1.zip`。
+2. 找到插件包：`build/distributions/FishNovel-1.0.3.zip`。
 3. 打开 IntelliJ IDEA。
 4. 进入 `Settings -> Plugins`。
 5. 点击插件页右上角齿轮按钮，选择 `Install Plugin from Disk...`。
-6. 选择 `FishNovel-1.0.1.zip`。
+6. 选择 `FishNovel-1.0.3.zip`。
 7. 按提示重启 IDEA。
 8. 重启后在 `Tools -> 打开 FishNovel` 打开插件。
 
@@ -47,7 +47,7 @@ FishNovel turns IntelliJ IDEA into a lightweight novel reader with local multi-f
 .\gradlew.bat buildPlugin --console=plain
 
 $pluginRoot = "$env:APPDATA\JetBrains\IntelliJIdea2025.3\plugins"
-$zipPath = Join-Path (Get-Location) "build\distributions\FishNovel-1.0.1.zip"
+$zipPath = Join-Path (Get-Location) "build\distributions\FishNovel-1.0.3.zip"
 $target = Join-Path $pluginRoot "FishNovel"
 $backup = Join-Path $pluginRoot ("FishNovel.backup-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
 
@@ -113,7 +113,7 @@ FishNovel 没有独立数据库，使用 IDEA 的持久化 XML 和插件缓存�
 安装产物：
 
 ```text
-build/distributions/FishNovel-1.0.1.zip
+build/distributions/FishNovel-1.0.3.zip
 ```
 
 ## 项目结构

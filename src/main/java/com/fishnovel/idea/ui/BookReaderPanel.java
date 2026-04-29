@@ -1,5 +1,7 @@
 package com.fishnovel.idea.ui;
 
+import static com.fishnovel.idea.FishNovelBundle.message;
+
 import com.fishnovel.idea.model.BookDocument;
 import com.fishnovel.idea.model.Bookmark;
 import com.fishnovel.idea.model.Chapter;
@@ -64,7 +66,7 @@ public final class BookReaderPanel extends JPanel {
     private final ReadingStateService stateService;
     private final Runnable onStateChanged;
 
-    private final JBLabel chapterMetaLabel = new JBLabel("导入或在线阅读后开始");
+    private final JBLabel chapterMetaLabel = new JBLabel(message("reader.empty"));
     private final JComboBox<Chapter> chapterSelector = new JComboBox<>();
     private final JComboBox<ReaderTheme> themeSelector = new JComboBox<>(ReaderTheme.values());
     private final JTextPane textPane = new JTextPane();
@@ -73,15 +75,15 @@ public final class BookReaderPanel extends JPanel {
     private final JPanel readerCard = new JPanel(new BorderLayout());
     private final JPanel controlPanel = new JPanel(new WrappingFlowLayout(FlowLayout.LEFT, 4, 4));
     private final JPanel bottomNavigationPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 4));
-    private final JButton bookmarkButton = new JButton("添加书签");
-    private final JButton refreshButton = new JButton("\u66f4\u65b0");
-    private final JButton jumpButton = new JButton("\u8df3\u8f6c");
-    private final JButton previousChapterButton = new JButton("上一章");
-    private final JButton nextChapterButton = new JButton("下一章");
+    private final JButton bookmarkButton = new JButton(message("reader.button.addBookmark"));
+    private final JButton refreshButton = new JButton(message("reader.button.refresh"));
+    private final JButton jumpButton = new JButton(message("reader.button.jump"));
+    private final JButton previousChapterButton = new JButton(message("reader.button.previous"));
+    private final JButton nextChapterButton = new JButton(message("reader.button.next"));
     private final JButton fontMinusButton = new JButton("A-");
     private final JButton fontPlusButton = new JButton("A+");
-    private final JButton spacingMinusButton = new JButton("紧凑");
-    private final JButton spacingPlusButton = new JButton("舒展");
+    private final JButton spacingMinusButton = new JButton(message("reader.button.spacingCompact"));
+    private final JButton spacingPlusButton = new JButton(message("reader.button.spacingRelaxed"));
 
     private BookDocument currentDocument;
     private RemoteChapterNavigation remoteNavigation;
@@ -112,18 +114,18 @@ public final class BookReaderPanel extends JPanel {
         header.add(chapterMetaLabel, BorderLayout.WEST);
 
         controlPanel.setOpaque(false);
-        controlPanel.add(new JBLabel("章节"));
+        controlPanel.add(new JBLabel(message("reader.label.chapter")));
         chapterSelector.setPreferredSize(new Dimension(168, 28));
         controlPanel.add(chapterSelector);
         controlPanel.add(jumpButton);
         controlPanel.add(refreshButton);
-        previousChapterButton.setToolTipText("上一章");
-        nextChapterButton.setToolTipText("下一章");
+        previousChapterButton.setToolTipText(message("reader.button.previous"));
+        nextChapterButton.setToolTipText(message("reader.button.next"));
         controlPanel.add(fontMinusButton);
         controlPanel.add(fontPlusButton);
         controlPanel.add(spacingMinusButton);
         controlPanel.add(spacingPlusButton);
-        controlPanel.add(new JBLabel("主题"));
+        controlPanel.add(new JBLabel(message("reader.label.theme")));
         controlPanel.add(themeSelector);
         controlPanel.add(bookmarkButton);
 
@@ -215,7 +217,7 @@ public final class BookReaderPanel extends JPanel {
     public void openRemoteChapter(RemoteChapterLoadResult result, ReadingProgress overrideProgress) {
         openBook(result.getDocument(), overrideProgress, result.getNavigation());
         if (result.hasWarning()) {
-            Messages.showWarningDialog(project, result.getWarning(), "FishNovel");
+            Messages.showWarningDialog(project, result.getWarning(), message("plugin.name"));
         }
     }
 
@@ -226,7 +228,7 @@ public final class BookReaderPanel extends JPanel {
 
     public void refreshCurrentBook() {
         if (currentDocument == null) {
-            Messages.showWarningDialog(project, "当前没有正在阅读的小说。", "FishNovel");
+            Messages.showWarningDialog(project, message("reader.warning.noBook"), message("plugin.name"));
             return;
         }
         if (loading) {
@@ -273,7 +275,7 @@ public final class BookReaderPanel extends JPanel {
         currentDocument = null;
         remoteNavigation = null;
         adjusting = true;
-        chapterMetaLabel.setText("导入或在线阅读后开始");
+        chapterMetaLabel.setText(message("reader.empty"));
         chapterSelector.removeAllItems();
         textPane.setText("");
         applyPreferences(ReadingPreferences.defaults());
@@ -292,14 +294,14 @@ public final class BookReaderPanel extends JPanel {
 
         Chapter chapter = currentDocument.getChapter(chapterIndex);
         adjusting = true;
-        chapterMetaLabel.setText("第 " + (chapterIndex + 1) + " / " + currentDocument.getChapters().size() + " 章 · " + chapter.getTitle());
+        chapterMetaLabel.setText(message("reader.chapterMeta", chapterIndex + 1, currentDocument.getChapters().size(), chapter.getTitle()));
         StyledDocument styledDocument = textPane.getStyledDocument();
         try {
             styledDocument.remove(0, styledDocument.getLength());
             styledDocument.insertString(0, chapter.getContent(), null);
             applyParagraphStyle(getCurrentPreferences());
         } catch (BadLocationException ex) {
-            Messages.showErrorDialog(project, "渲染章节失败：\n" + ex.getMessage(), "FishNovel");
+            Messages.showErrorDialog(project, message("reader.error.renderPrefix") + ex.getMessage(), message("plugin.name"));
         }
 
         restoreOffset(contentOffset);
@@ -337,8 +339,8 @@ public final class BookReaderPanel extends JPanel {
         }
         String input = Messages.showInputDialog(
             project,
-            "\u8bf7\u8f93\u5165\u7ae0\u8282\u7f16\u53f7",
-            "\u8df3\u8f6c\u7ae0\u8282",
+            message("reader.dialog.jump.prompt"),
+            message("reader.dialog.jump.title"),
             Messages.getQuestionIcon()
         );
         if (input == null) {
@@ -346,7 +348,7 @@ public final class BookReaderPanel extends JPanel {
         }
         OptionalInt chapterNumber = ChapterJumpResolver.parsePositiveNumber(input);
         if (chapterNumber.isEmpty()) {
-            Messages.showWarningDialog(project, "\u8bf7\u8f93\u5165\u5927\u4e8e 0 \u7684\u6570\u5b57\u7ae0\u8282\u7f16\u53f7\u3002", "FishNovel");
+            Messages.showWarningDialog(project, message("reader.warning.invalidChapterNumber"), message("plugin.name"));
             return;
         }
         if (currentDocument.getSourceType() == SourceType.REMOTE_URL) {
@@ -355,7 +357,7 @@ public final class BookReaderPanel extends JPanel {
         }
         OptionalInt chapterIndex = ChapterJumpResolver.resolveLocalChapterIndex(currentDocument, input);
         if (chapterIndex.isEmpty()) {
-            Messages.showWarningDialog(project, "\u627e\u4e0d\u5230\u7b2c " + chapterNumber.getAsInt() + " \u7ae0\u3002", "FishNovel");
+            Messages.showWarningDialog(project, message("reader.warning.chapterNotFound", chapterNumber.getAsInt()), message("plugin.name"));
             return;
         }
         adjusting = true;
@@ -372,7 +374,7 @@ public final class BookReaderPanel extends JPanel {
             return;
         }
         setReaderLoading(true);
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel loading web chapter", true) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, message("reader.task.loadingWebChapter"), true) {
             @Override
             public void run(ProgressIndicator indicator) {
                 try {
@@ -384,7 +386,7 @@ public final class BookReaderPanel extends JPanel {
                 } catch (IOException ex) {
                     ApplicationManager.getApplication().invokeLater(() -> {
                         setReaderLoading(false);
-                        Messages.showErrorDialog(project, "网页章节加载失败：\n" + ex.getMessage(), "FishNovel");
+                        Messages.showErrorDialog(project, message("reader.error.webLoadPrefix") + ex.getMessage(), message("plugin.name"));
                     });
                 }
             }
@@ -394,14 +396,14 @@ public final class BookReaderPanel extends JPanel {
     private void loadRemoteChapterByNumber(int chapterNumber) {
         String currentUrl = remoteNavigation == null ? currentDocument.getSourceLocation() : remoteNavigation.getCurrentUrl();
         if (currentUrl == null || currentUrl.isBlank()) {
-            Messages.showWarningDialog(project, "\u5f53\u524d\u7f51\u9875\u7ae0\u8282\u4e0d\u652f\u6301\u7f16\u53f7\u8df3\u8f6c\u3002", "FishNovel");
+            Messages.showWarningDialog(project, message("reader.warning.remoteJumpUnsupported"), message("plugin.name"));
             return;
         }
         if (loading) {
             return;
         }
         setReaderLoading(true);
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel jumping web chapter", true) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, message("reader.task.jumpingWebChapter"), true) {
             @Override
             public void run(ProgressIndicator indicator) {
                 try {
@@ -413,7 +415,7 @@ public final class BookReaderPanel extends JPanel {
                 } catch (IOException ex) {
                     ApplicationManager.getApplication().invokeLater(() -> {
                         setReaderLoading(false);
-                        Messages.showErrorDialog(project, "\u7f51\u9875\u7ae0\u8282\u8df3\u8f6c\u5931\u8d25\uff1a\n" + ex.getMessage(), "FishNovel");
+                        Messages.showErrorDialog(project, message("reader.error.webJumpPrefix") + ex.getMessage(), message("plugin.name"));
                     });
                 }
             }
@@ -422,7 +424,7 @@ public final class BookReaderPanel extends JPanel {
 
     private void refreshTomatoDocument(BookDocument document, ReadingProgress progress) {
         setReaderLoading(true);
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel refreshing Tomato book", true) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, message("reader.task.refreshingTomatoBook"), true) {
             @Override
             public void run(ProgressIndicator indicator) {
                 try {
@@ -434,7 +436,7 @@ public final class BookReaderPanel extends JPanel {
                 } catch (IOException ex) {
                     ApplicationManager.getApplication().invokeLater(() -> {
                         setReaderLoading(false);
-                        Messages.showErrorDialog(project, "刷新番茄小说失败：\n" + ex.getMessage(), "FishNovel");
+                        Messages.showErrorDialog(project, message("reader.error.refreshTomatoPrefix") + ex.getMessage(), message("plugin.name"));
                     });
                 }
             }
@@ -446,12 +448,12 @@ public final class BookReaderPanel extends JPanel {
         try {
             sourcePath = resolveLocalSourcePath(document);
         } catch (IOException ex) {
-            Messages.showErrorDialog(project, "刷新当前小说失败：\n" + ex.getMessage(), "FishNovel");
+            Messages.showErrorDialog(project, message("reader.error.refreshBookPrefix") + ex.getMessage(), message("plugin.name"));
             return;
         }
 
         setReaderLoading(true);
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel refreshing book", true) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, message("reader.task.refreshingBook"), true) {
             @Override
             public void run(ProgressIndicator indicator) {
                 try {
@@ -463,7 +465,7 @@ public final class BookReaderPanel extends JPanel {
                 } catch (IOException ex) {
                     ApplicationManager.getApplication().invokeLater(() -> {
                         setReaderLoading(false);
-                        Messages.showErrorDialog(project, "刷新当前小说失败：\n" + ex.getMessage(), "FishNovel");
+                        Messages.showErrorDialog(project, message("reader.error.refreshBookPrefix") + ex.getMessage(), message("plugin.name"));
                     });
                 }
             }
@@ -473,12 +475,12 @@ public final class BookReaderPanel extends JPanel {
     private void refreshRemoteDocument(BookDocument document, ReadingProgress progress) {
         String currentUrl = remoteNavigation == null ? document.getSourceLocation() : remoteNavigation.getCurrentUrl();
         if (currentUrl == null || currentUrl.isBlank()) {
-            Messages.showWarningDialog(project, "当前网页章节没有可刷新的地址。", "FishNovel");
+            Messages.showWarningDialog(project, message("reader.warning.noRefreshUrl"), message("plugin.name"));
             return;
         }
 
         setReaderLoading(true);
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel refreshing web chapter", true) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, message("reader.task.refreshingWebChapter"), true) {
             @Override
             public void run(ProgressIndicator indicator) {
                 try {
@@ -487,13 +489,13 @@ public final class BookReaderPanel extends JPanel {
                         setReaderLoading(false);
                         openBook(result.getDocument(), progress, result.getNavigation());
                         if (result.hasWarning()) {
-                            Messages.showWarningDialog(project, result.getWarning(), "FishNovel");
+                            Messages.showWarningDialog(project, result.getWarning(), message("plugin.name"));
                         }
                     });
                 } catch (IOException ex) {
                     ApplicationManager.getApplication().invokeLater(() -> {
                         setReaderLoading(false);
-                        Messages.showErrorDialog(project, "刷新当前网页章节失败：\n" + ex.getMessage(), "FishNovel");
+                        Messages.showErrorDialog(project, message("reader.error.refreshWebPrefix") + ex.getMessage(), message("plugin.name"));
                     });
                 }
             }
@@ -506,12 +508,12 @@ public final class BookReaderPanel extends JPanel {
         }
         String sourceLocation = document.getSourceLocation();
         if (sourceLocation == null || sourceLocation.isBlank()) {
-            throw new IOException("当前小说没有可用的本地文件路径。");
+            throw new IOException(message("reader.error.noLocalPath"));
         }
         try {
             return Path.of(sourceLocation);
         } catch (InvalidPathException ex) {
-            throw new IOException("当前小说保存的本地路径无效：" + sourceLocation, ex);
+            throw new IOException(message("reader.error.invalidLocalPath", sourceLocation), ex);
         }
     }
 
@@ -610,7 +612,7 @@ public final class BookReaderPanel extends JPanel {
             currentOffset()
         );
         onStateChanged.run();
-        Messages.showInfoMessage(project, "已添加书签：\n" + bookmark.getChapterTitle(), "FishNovel");
+        Messages.showInfoMessage(project, message("reader.info.bookmarkAdded", bookmark.getChapterTitle()), message("plugin.name"));
     }
 
     private int currentOffset() {

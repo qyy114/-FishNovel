@@ -1,5 +1,6 @@
 package com.fishnovel.idea.util;
 
+import com.fishnovel.idea.FishNovelBundle;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.vfs.VirtualFile;
 import java.util.List;
@@ -23,7 +24,7 @@ public final class SupportedBookFormats {
     public static FileChooserDescriptor createImportDescriptor(String title) {
         return new FileChooserDescriptor(true, false, false, false, false, false)
             .withTitle(title)
-            .withDescription("支持 TXT、EPUB、Markdown、HTML（.html / .htm）")
+            .withDescription(FishNovelBundle.message("import.dialog.description"))
             .withHideIgnored(false)
             .withFileFilter(SupportedBookFormats::isSupportedFile);
     }

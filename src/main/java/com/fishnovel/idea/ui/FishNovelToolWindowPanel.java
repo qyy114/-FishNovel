@@ -1,5 +1,7 @@
 package com.fishnovel.idea.ui;
 
+import static com.fishnovel.idea.FishNovelBundle.message;
+
 import com.fishnovel.idea.model.BookDocument;
 import com.fishnovel.idea.model.BookShelfItem;
 import com.fishnovel.idea.model.Bookmark;
@@ -145,9 +147,9 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 6));
         setBackground(UIUtil.getPanelBackground());
 
-        JButton importButton = createToolbarButton("导入小说");
-        JButton onlineReadButton = createToolbarButton("在线阅读");
-        JButton tomatoDownloadButton = createToolbarButton("番茄下载");
+        JButton importButton = createToolbarButton(message("toolbar.importBook"));
+        JButton onlineReadButton = createToolbarButton(message("toolbar.onlineRead"));
+        JButton tomatoDownloadButton = createToolbarButton(message("toolbar.tomatoDownload"));
         importButton.addActionListener(event -> importBook());
         onlineReadButton.addActionListener(event -> importWebBook());
         tomatoDownloadButton.addActionListener(event -> importTomatoBook());
@@ -162,9 +164,9 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         toolbar.add(topToolbarsToggleButton, BorderLayout.WEST);
         toolbar.add(importToolbarActions, BorderLayout.CENTER);
 
-        configureList(libraryList, "暂无书架");
-        configureList(recentList, "暂无最近阅读");
-        configureList(bookmarkList, "暂无书签");
+        configureList(libraryList, message("sidebar.empty.library"));
+        configureList(recentList, message("sidebar.empty.recent"));
+        configureList(bookmarkList, message("sidebar.empty.bookmarks"));
         installLibraryPopupMenu();
         installBookmarkPopupMenu();
         installBookmarkKeyboardDelete();
@@ -195,13 +197,13 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         });
 
         libraryList.setCellRenderer((list, value, index, isSelected, cellHasFocus) ->
-            createSidebarItem(value.getTitle(), shortenLocation(value.getSourceLocation()), value.getBookmarkCount() + " 个书签", isSelected)
+            createSidebarItem(value.getTitle(), shortenLocation(value.getSourceLocation()), message("sidebar.bookmarkCount", value.getBookmarkCount()), isSelected)
         );
         recentList.setCellRenderer((list, value, index, isSelected, cellHasFocus) ->
-            createSidebarItem(value.getTitle(), shortenLocation(value.getSourceLocation()), "最近阅读", isSelected)
+            createSidebarItem(value.getTitle(), shortenLocation(value.getSourceLocation()), message("sidebar.meta.recent"), isSelected)
         );
         bookmarkList.setCellRenderer((list, value, index, isSelected, cellHasFocus) ->
-            createSidebarItem(value.getBookTitle(), value.getChapterTitle(), "书签定位", isSelected)
+            createSidebarItem(value.getBookTitle(), value.getChapterTitle(), message("sidebar.meta.bookmarkLocation"), isSelected)
         );
 
         sidebar = createSidebar();
@@ -238,9 +240,9 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         configureSectionContent(recentSectionContent, recentList);
         configureSectionContent(bookmarkSectionContent, bookmarkList);
 
-        librarySectionButton = createSectionButton("书架", SECTION_LIBRARY, true);
-        recentSectionButton = createSectionButton("最近", SECTION_RECENT, false);
-        bookmarkSectionButton = createSectionButton("书签", SECTION_BOOKMARKS, false);
+        librarySectionButton = createSectionButton(message("sidebar.section.library"), SECTION_LIBRARY, true);
+        recentSectionButton = createSectionButton(message("sidebar.section.recent"), SECTION_RECENT, false);
+        bookmarkSectionButton = createSectionButton(message("sidebar.section.bookmarks"), SECTION_BOOKMARKS, false);
 
         sidebarSections.add(librarySectionButton);
         sidebarSections.add(librarySectionContent);
@@ -267,7 +269,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         button.setPreferredSize(size);
         button.setMinimumSize(size);
         button.setMaximumSize(size);
-        button.setToolTipText("收起侧边栏");
+        button.setToolTipText(message("sidebar.tooltip.collapse"));
         button.addActionListener(event -> toggleSidebarCollapsed());
         styleSubtleButton(button);
         return button;
@@ -282,7 +284,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         button.setPreferredSize(size);
         button.setMinimumSize(size);
         button.setMaximumSize(size);
-        button.setToolTipText("展开导入和跳转功能栏");
+        button.setToolTipText(message("toolbar.tooltip.expand"));
         button.addActionListener(event -> toggleTopToolbarsCollapsed());
         styleSubtleButton(button);
         return button;
@@ -379,7 +381,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
             readerControlsToggleButton.setText(topToolbarsCollapsed ? "\u203a" : "\u2039");
         }
         topToolbarsToggleButton.setText(topToolbarsCollapsed ? "\u203a" : "\u2039");
-        topToolbarsToggleButton.setToolTipText(topToolbarsCollapsed ? "展开导入和跳转功能栏" : "收起导入和跳转功能栏");
+        topToolbarsToggleButton.setToolTipText(topToolbarsCollapsed ? message("toolbar.tooltip.expand") : message("toolbar.tooltip.collapse"));
         revalidate();
         repaint();
     }
@@ -391,7 +393,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         int width = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
         sidebarSections.setVisible(!sidebarCollapsed);
         sidebarToggleButton.setText(sidebarCollapsed ? "\u203a" : "\u2039");
-        sidebarToggleButton.setToolTipText(sidebarCollapsed ? "展开侧边栏" : "收起侧边栏");
+        sidebarToggleButton.setToolTipText(sidebarCollapsed ? message("sidebar.tooltip.expand") : message("sidebar.tooltip.collapse"));
         sidebar.setPreferredSize(new Dimension(width, 520));
         sidebar.setMinimumSize(new Dimension(width, 320));
         if (splitPane != null) {
@@ -470,7 +472,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
 
     private String shortenLocation(String location) {
         if (location == null || location.isBlank()) {
-            return "暂无来源";
+            return message("sidebar.noSource");
         }
         if (location.startsWith("http://") || location.startsWith("https://")) {
             try {
@@ -541,7 +543,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
 
     private void installLibraryPopupMenu() {
         JPopupMenu popupMenu = new JPopupMenu();
-        JMenuItem deleteItem = new JMenuItem("从书架删除");
+        JMenuItem deleteItem = new JMenuItem(message("sidebar.popup.deleteBook"));
         deleteItem.addActionListener(this::deleteSelectedBook);
         popupMenu.add(deleteItem);
 
@@ -582,7 +584,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
 
     private void installBookmarkPopupMenu() {
         JPopupMenu popupMenu = new JPopupMenu();
-        JMenuItem deleteItem = new JMenuItem("删除书签");
+        JMenuItem deleteItem = new JMenuItem(message("sidebar.popup.deleteBookmark"));
         deleteItem.addActionListener(event -> deleteSelectedBookmark());
         popupMenu.add(deleteItem);
 
@@ -630,7 +632,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         }
         boolean removed = stateService.removeBookmark(selected.getId());
         if (!removed) {
-            Messages.showWarningDialog(project, "书签不存在或已经删除。", "FishNovel");
+            Messages.showWarningDialog(project, message("sidebar.warning.bookmarkMissing"), message("plugin.name"));
             return;
         }
         bookmarkList.clearSelection();
@@ -653,7 +655,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     }
 
     private void importBook() {
-        FileChooserDescriptor descriptor = SupportedBookFormats.createImportDescriptor("导入小说到 FishNovel");
+        FileChooserDescriptor descriptor = SupportedBookFormats.createImportDescriptor(message("import.dialog.title"));
         VirtualFile selectedFile = FileChooser.chooseFile(descriptor, project, null);
         if (selectedFile == null) {
             return;
@@ -664,15 +666,15 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
             refreshSidebar();
             readerPanel.openBook(document);
         } catch (IOException ex) {
-            Messages.showErrorDialog(project, "导入小说失败：\n" + ex.getMessage(), "FishNovel");
+            Messages.showErrorDialog(project, message("import.errorPrefix") + ex.getMessage(), message("plugin.name"));
         }
     }
 
     private void importWebBook() {
         String url = Messages.showInputDialog(
             project,
-            "输入网页地址，例如：https://www.sudugu.org/5/20.html",
-            "在线阅读网页小说",
+            message("web.input.prompt"),
+            message("web.input.title"),
             Messages.getQuestionIcon()
         );
         if (url == null || url.isBlank()) {
@@ -680,14 +682,14 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         }
 
         String targetUrl = url.trim();
-        openRemoteUrlInPanel(targetUrl, "网页导入失败：\n");
+        openRemoteUrlInPanel(targetUrl, message("web.import.errorPrefix"));
     }
 
     private void importTomatoBook() {
         String input = Messages.showInputDialog(
             project,
-            "输入番茄小说 book_id、分享链接或详情页链接",
-            "番茄下载",
+            message("tomato.input.prompt"),
+            message("tomato.input.title"),
             Messages.getQuestionIcon()
         );
         if (input == null || input.isBlank()) {
@@ -699,7 +701,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         }
 
         String request = input.trim();
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel downloading Tomato book", true) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, message("tomato.task.downloading"), true) {
             @Override
             public void run(ProgressIndicator indicator) {
                 try {
@@ -710,7 +712,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
                     });
                 } catch (IOException ex) {
                     ApplicationManager.getApplication().invokeLater(() ->
-                        Messages.showErrorDialog(project, "番茄下载失败：\n" + ex.getMessage(), "FishNovel")
+                        Messages.showErrorDialog(project, message("tomato.errorPrefix") + ex.getMessage(), message("plugin.name"))
                     );
                 }
             }
@@ -723,8 +725,8 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         }
 
         FileChooserDescriptor descriptor = new FileChooserDescriptor(true, false, false, false, false, false)
-            .withTitle("选择 Tomato-Novel-Downloader")
-            .withDescription("选择 TomatoNovelDownloader-Win64-*.exe，路径会保存到 FishNovel。")
+            .withTitle(message("tomato.downloader.title"))
+            .withDescription(message("tomato.downloader.description"))
             .withHideIgnored(false)
             .withFileFilter(file -> file != null
                 && (file.isDirectory() || file.getName().toLowerCase(Locale.ROOT).endsWith(".exe")));
@@ -734,7 +736,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
             return false;
         }
         if (!selectedFile.getName().toLowerCase(Locale.ROOT).endsWith(".exe")) {
-            Messages.showWarningDialog(project, "请选择 Tomato-Novel-Downloader 的 Windows exe 文件。", "FishNovel");
+            Messages.showWarningDialog(project, message("tomato.downloader.warning.invalidExe"), message("plugin.name"));
             return false;
         }
         projectService.setTomatoDownloaderPath(Path.of(selectedFile.getPath()));
@@ -743,19 +745,19 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
 
     private void openBookInPanel(BookShelfItem item) {
         if (item.getSourceType() == SourceType.REMOTE_URL) {
-            openRemoteUrlInPanel(item.getSourceLocation(), "打开网页章节失败：\n");
+            openRemoteUrlInPanel(item.getSourceLocation(), message("book.open.web.errorPrefix"));
             return;
         }
         try {
             readerPanel.openBook(projectService.reopen(item));
             refreshSidebar();
         } catch (IOException ex) {
-            Messages.showErrorDialog(project, "打开小说失败：\n" + ex.getMessage(), "FishNovel");
+            Messages.showErrorDialog(project, message("book.open.errorPrefix") + ex.getMessage(), message("plugin.name"));
         }
     }
 
     private void openRemoteUrlInPanel(String url, String errorPrefix) {
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel loading web chapter", true) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, message("reader.task.loadingWebChapter"), true) {
             @Override
             public void run(ProgressIndicator indicator) {
                 try {
@@ -766,7 +768,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
                     });
                 } catch (IOException ex) {
                     ApplicationManager.getApplication().invokeLater(() ->
-                        Messages.showErrorDialog(project, errorPrefix + ex.getMessage(), "FishNovel")
+                        Messages.showErrorDialog(project, errorPrefix + ex.getMessage(), message("plugin.name"))
                     );
                 }
             }
@@ -784,13 +786,13 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
                 readerPanel.openBook(document, progressFromBookmark(bookmark));
                 refreshSidebar();
             } catch (IOException ex) {
-                Messages.showErrorDialog(project, "跳转书签失败：\n" + ex.getMessage(), "FishNovel");
+                Messages.showErrorDialog(project, message("bookmark.jump.errorPrefix") + ex.getMessage(), message("plugin.name"));
             }
         });
     }
 
     private void openRemoteBookmarkInPanel(String url, Bookmark bookmark) {
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, "FishNovel loading web chapter", true) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, message("reader.task.loadingWebChapter"), true) {
             @Override
             public void run(ProgressIndicator indicator) {
                 try {
@@ -801,7 +803,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
                     });
                 } catch (IOException ex) {
                     ApplicationManager.getApplication().invokeLater(() ->
-                        Messages.showErrorDialog(project, "跳转书签失败：\n" + ex.getMessage(), "FishNovel")
+                        Messages.showErrorDialog(project, message("bookmark.jump.errorPrefix") + ex.getMessage(), message("plugin.name"))
                     );
                 }
             }
