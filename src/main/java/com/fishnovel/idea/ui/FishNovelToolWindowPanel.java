@@ -69,7 +69,8 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     private static final String SECTION_RECENT = "recent";
     private static final String SECTION_BOOKMARKS = "bookmarks";
     private static final int SIDEBAR_EXPANDED_WIDTH = 248;
-    private static final int SIDEBAR_COLLAPSED_WIDTH = 30;
+    private static final int SIDEBAR_COLLAPSED_WIDTH = 22;
+    private static final int CHROME_TOGGLE_SIZE = 22;
 
     private final Project project;
     private final ToolWindow toolWindow;
@@ -90,9 +91,11 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     private final JPanel recentSectionContent = new JPanel(new BorderLayout());
     private final JPanel bookmarkSectionContent = new JPanel(new BorderLayout());
 
+    private JPanel toolbar;
     private JSplitPane splitPane;
     private JPanel sidebar;
     private JButton topToolbarsToggleButton;
+    private JButton readerControlsToggleButton;
     private JButton sidebarToggleButton;
     private JToggleButton librarySectionButton;
     private JToggleButton recentSectionButton;
@@ -104,7 +107,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     private BookShelfItem libraryPopupTarget;
 
     public FishNovelToolWindowPanel(Project project, ToolWindow toolWindow) {
-        super(new BorderLayout(0, 12));
+        super(new BorderLayout(0, 0));
         this.project = project;
         this.toolWindow = toolWindow;
         this.projectService = FishNovelProjectService.getInstance(project);
@@ -139,7 +142,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     }
 
     private void buildUi() {
-        setBorder(BorderFactory.createEmptyBorder(6, 0, 6, 6));
+        setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 6));
         setBackground(UIUtil.getPanelBackground());
 
         JButton importButton = createToolbarButton("导入小说");
@@ -149,7 +152,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         onlineReadButton.addActionListener(event -> importWebBook());
         tomatoDownloadButton.addActionListener(event -> importTomatoBook());
 
-        JPanel toolbar = new JPanel(new BorderLayout(4, 0));
+        toolbar = new JPanel(new BorderLayout(4, 0));
         toolbar.setOpaque(false);
         topToolbarsToggleButton = createTopToolbarsToggleButton();
         importToolbarActions.setOpaque(false);
@@ -158,7 +161,6 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         importToolbarActions.add(tomatoDownloadButton);
         toolbar.add(topToolbarsToggleButton, BorderLayout.WEST);
         toolbar.add(importToolbarActions, BorderLayout.CENTER);
-        updateTopToolbarsCollapsedState();
 
         configureList(libraryList, "暂无书架");
         configureList(recentList, "暂无最近阅读");
@@ -211,17 +213,23 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
 
         add(toolbar, BorderLayout.NORTH);
         add(splitPane, BorderLayout.CENTER);
+        updateTopToolbarsCollapsedState();
     }
 
     private JPanel createSidebar() {
-        JPanel sidebar = new JPanel(new BorderLayout(0, 4));
+        JPanel sidebar = new JPanel(new BorderLayout(0, 2));
         sidebar.setOpaque(false);
-        sidebar.setBorder(JBUI.Borders.empty(2, 0, 0, 0));
+        sidebar.setBorder(JBUI.Borders.empty());
 
+        readerControlsToggleButton = createTopToolbarsToggleButton();
         sidebarToggleButton = createSidebarToggleButton();
-        JPanel sidebarHeader = new JPanel(new BorderLayout());
+        JPanel sidebarHeader = new JPanel();
         sidebarHeader.setOpaque(false);
-        sidebarHeader.add(sidebarToggleButton, BorderLayout.WEST);
+        sidebarHeader.setLayout(new BoxLayout(sidebarHeader, BoxLayout.Y_AXIS));
+        readerControlsToggleButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sidebarToggleButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sidebarHeader.add(readerControlsToggleButton);
+        sidebarHeader.add(sidebarToggleButton);
 
         sidebarSections.setOpaque(false);
         sidebarSections.setLayout(new BoxLayout(sidebarSections, BoxLayout.Y_AXIS));
@@ -254,8 +262,11 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         JButton button = new JButton("\u2039");
         button.setFocusPainted(false);
         button.setOpaque(true);
-        button.setBorder(JBUI.Borders.empty(4, 8));
-        button.setPreferredSize(new Dimension(30, 28));
+        button.setBorder(JBUI.Borders.empty(2, 5));
+        Dimension size = new Dimension(CHROME_TOGGLE_SIZE, 24);
+        button.setPreferredSize(size);
+        button.setMinimumSize(size);
+        button.setMaximumSize(size);
         button.setToolTipText("收起侧边栏");
         button.addActionListener(event -> toggleSidebarCollapsed());
         styleSubtleButton(button);
@@ -266,8 +277,11 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         JButton button = new JButton("\u203a");
         button.setFocusPainted(false);
         button.setOpaque(true);
-        button.setBorder(JBUI.Borders.empty(4, 8));
-        button.setPreferredSize(new Dimension(30, 28));
+        button.setBorder(JBUI.Borders.empty(2, 5));
+        Dimension size = new Dimension(CHROME_TOGGLE_SIZE, 24);
+        button.setPreferredSize(size);
+        button.setMinimumSize(size);
+        button.setMaximumSize(size);
         button.setToolTipText("展开导入和跳转功能栏");
         button.addActionListener(event -> toggleTopToolbarsCollapsed());
         styleSubtleButton(button);
@@ -354,8 +368,16 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         if (topToolbarsToggleButton == null) {
             return;
         }
-        importToolbarActions.setVisible(!topToolbarsCollapsed);
+        boolean expanded = !topToolbarsCollapsed;
+        if (toolbar != null) {
+            toolbar.setVisible(expanded);
+        }
+        importToolbarActions.setVisible(expanded);
         readerPanel.setControlsCollapsed(topToolbarsCollapsed);
+        if (readerControlsToggleButton != null) {
+            readerControlsToggleButton.setVisible(topToolbarsCollapsed);
+            readerControlsToggleButton.setText(topToolbarsCollapsed ? "\u203a" : "\u2039");
+        }
         topToolbarsToggleButton.setText(topToolbarsCollapsed ? "\u203a" : "\u2039");
         topToolbarsToggleButton.setToolTipText(topToolbarsCollapsed ? "展开导入和跳转功能栏" : "收起导入和跳转功能栏");
         revalidate();
