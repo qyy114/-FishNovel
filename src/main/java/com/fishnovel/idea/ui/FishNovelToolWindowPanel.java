@@ -38,6 +38,8 @@ import java.awt.Font;
 import java.awt.KeyboardFocusManager;
 import java.awt.KeyEventDispatcher;
 import java.awt.Window;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -225,6 +227,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, sidebar, readerPanel);
         splitPane.setResizeWeight(0.22);
         configureSplitPane(splitPane);
+        installSplitPaneLayoutSync();
         applySidebarCollapsedState();
 
         add(toolbar, BorderLayout.NORTH);
@@ -399,11 +402,33 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         sidebarToggleButton.setToolTipText(sidebarCollapsed ? message("sidebar.tooltip.expand") : message("sidebar.tooltip.collapse"));
         sidebar.setPreferredSize(new Dimension(width, 520));
         sidebar.setMinimumSize(new Dimension(width, 320));
-        if (splitPane != null) {
-            splitPane.setDividerLocation(width);
-        }
+        syncSidebarDividerLocation();
         revalidate();
         repaint();
+    }
+
+    private void installSplitPaneLayoutSync() {
+        if (splitPane != null) {
+            splitPane.addComponentListener(new ComponentAdapter() {
+                @Override
+                public void componentShown(ComponentEvent event) {
+                    SwingUtilities.invokeLater(FishNovelToolWindowPanel.this::syncSidebarDividerLocation);
+                }
+
+                @Override
+                public void componentResized(ComponentEvent event) {
+                    SwingUtilities.invokeLater(FishNovelToolWindowPanel.this::syncSidebarDividerLocation);
+                }
+            });
+        }
+    }
+
+    private void syncSidebarDividerLocation() {
+        if (splitPane == null || sidebar == null || splitPane.getWidth() <= 0) {
+            return;
+        }
+        int width = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
+        splitPane.setDividerLocation(width);
     }
 
     private void refreshSectionButton(JToggleButton button, boolean selected) {
