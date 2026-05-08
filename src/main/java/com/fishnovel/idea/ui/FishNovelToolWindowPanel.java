@@ -102,6 +102,8 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     private String activeSection = SECTION_LIBRARY;
     private boolean topToolbarsCollapsed = false;
     private boolean sidebarCollapsed = false;
+    private boolean sidebarStateApplied;
+    private boolean appliedSidebarCollapsed;
     private boolean suppressLibraryOpen;
     private BookShelfItem libraryPopupTarget;
 
@@ -138,12 +140,6 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     public void dispose() {
         KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(bossKeyDispatcher);
         readerPanel.disposePanel();
-    }
-
-    @Override
-    public void addNotify() {
-        super.addNotify();
-        SwingUtilities.invokeLater(this::applySidebarCollapsedState);
     }
 
     private void buildUi() {
@@ -228,7 +224,6 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         add(toolbar, BorderLayout.NORTH);
         add(contentPanel, BorderLayout.CENTER);
         updateTopToolbarsCollapsedState();
-        SwingUtilities.invokeLater(this::applySidebarCollapsedState);
     }
 
     private JPanel createSidebar() {
@@ -358,8 +353,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         refreshSectionButton(librarySectionButton, librarySelected);
         refreshSectionButton(recentSectionButton, recentSelected);
         refreshSectionButton(bookmarkSectionButton, bookmarkSelected);
-        revalidate();
-        repaint();
+        repaintIfDisplayable();
     }
 
     private void toggleSidebarCollapsed() {
@@ -382,14 +376,19 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         readerPanel.setControlsCollapsed(topToolbarsCollapsed);
         topToolbarsToggleButton.setText(topToolbarsCollapsed ? "\u203a" : "\u2039");
         topToolbarsToggleButton.setToolTipText(topToolbarsCollapsed ? message("toolbar.tooltip.expand") : message("toolbar.tooltip.collapse"));
-        revalidate();
-        repaint();
+        repaintIfDisplayable();
     }
 
     private void applySidebarCollapsedState() {
         if (sidebar == null || sidebarSections == null || sidebarToggleButton == null) {
             return;
         }
+        if (sidebarStateApplied && appliedSidebarCollapsed == sidebarCollapsed) {
+            return;
+        }
+        sidebarStateApplied = true;
+        appliedSidebarCollapsed = sidebarCollapsed;
+
         int width = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
         sidebar.setVisible(true);
         sidebarTabs.setVisible(!sidebarCollapsed);
@@ -400,12 +399,14 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         sidebar.setPreferredSize(sidebarSize);
         sidebar.setMinimumSize(sidebarSize);
         sidebar.setMaximumSize(new Dimension(width, Integer.MAX_VALUE));
-        if (contentPanel != null) {
-            contentPanel.revalidate();
-            contentPanel.repaint();
-        }
         readerPanel.refreshChromeLayout();
-        SwingUtilities.invokeLater(readerPanel::refreshChromeLayout);
+        repaintIfDisplayable();
+    }
+
+    private void repaintIfDisplayable() {
+        if (!isDisplayable()) {
+            return;
+        }
         revalidate();
         repaint();
     }

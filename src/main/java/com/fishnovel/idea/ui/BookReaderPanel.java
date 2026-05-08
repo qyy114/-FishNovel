@@ -107,12 +107,7 @@ public final class BookReaderPanel extends JPanel {
     private void buildUi() {
         setBorder(JBUI.Borders.empty());
 
-        JPanel header = new JPanel(new BorderLayout(8, 0));
-        header.setBorder(JBUI.Borders.emptyBottom(3));
-        header.setOpaque(false);
-
         chapterMetaLabel.setFont(chapterMetaLabel.getFont().deriveFont(Font.PLAIN, 12f));
-        header.add(chapterMetaLabel, BorderLayout.WEST);
 
         controlPanel.setOpaque(false);
         controlPanel.add(new JBLabel(message("reader.label.chapter")));
@@ -131,8 +126,7 @@ public final class BookReaderPanel extends JPanel {
         controlPanel.add(bookmarkButton);
 
         topPanel.setOpaque(false);
-        topPanel.add(header, BorderLayout.NORTH);
-        topPanel.add(controlPanel, BorderLayout.SOUTH);
+        topPanel.add(controlPanel, BorderLayout.CENTER);
         updateControlsCollapsedState();
 
         textPane.setEditable(false);
@@ -234,6 +228,8 @@ public final class BookReaderPanel extends JPanel {
     public void refreshChromeLayout() {
         controlPanel.invalidate();
         topPanel.invalidate();
+        topPanel.doLayout();
+        controlPanel.doLayout();
         revalidate();
         repaint();
     }

@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.fishnovel.idea"
-version = "1.0.8"
+version = "1.0.9"
 
 val signingProperties = Properties().apply {
     val file = layout.projectDirectory.file("certificates/signing.local.properties").asFile
@@ -45,6 +45,7 @@ intellijPlatform {
         """.trimIndent()
         changeNotes = """
             <ul>
+                <li>1.0.9: Avoid sidebar layout refreshes while the tool window is being attached and remove the stale empty reader header that could leave top whitespace.</li>
                 <li>1.0.8: Refresh the reader toolbar layout when the sidebar is collapsed or expanded to avoid stale top whitespace.</li>
                 <li>1.0.7: Open the sidebar and reader toolbars by default so the full navigation is visible on first launch.</li>
                 <li>1.0.6: Replaced the hidden split pane with fixed sidebar layout so the navigation panel opens at full width on first display.</li>
