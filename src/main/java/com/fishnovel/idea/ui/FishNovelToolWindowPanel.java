@@ -28,10 +28,12 @@ import com.intellij.ui.components.JBList;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Dialog;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.KeyboardFocusManager;
 import java.awt.KeyEventDispatcher;
@@ -46,8 +48,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
@@ -71,7 +71,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     private static final String SECTION_RECENT = "recent";
     private static final String SECTION_BOOKMARKS = "bookmarks";
     private static final int SIDEBAR_EXPANDED_WIDTH = 248;
-    private static final int SIDEBAR_COLLAPSED_WIDTH = 22;
+    private static final int SIDEBAR_COLLAPSED_WIDTH = 0;
     private static final int CHROME_TOGGLE_SIZE = 22;
 
     private final Project project;
@@ -88,7 +88,8 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     private final JBList<Bookmark> bookmarkList = new JBList<>(bookmarkModel);
     private final ButtonGroup sectionButtonGroup = new ButtonGroup();
     private final JPanel importToolbarActions = new JPanel();
-    private final JPanel sidebarSections = new JPanel();
+    private final JPanel sidebarTabs = new JPanel();
+    private final JPanel sidebarSections = new JPanel(new CardLayout());
     private final JPanel librarySectionContent = new JPanel(new BorderLayout());
     private final JPanel recentSectionContent = new JPanel(new BorderLayout());
     private final JPanel bookmarkSectionContent = new JPanel(new BorderLayout());
@@ -97,7 +98,6 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     private JSplitPane splitPane;
     private JPanel sidebar;
     private JButton topToolbarsToggleButton;
-    private JButton readerControlsToggleButton;
     private JButton sidebarToggleButton;
     private JToggleButton librarySectionButton;
     private JToggleButton recentSectionButton;
@@ -143,6 +143,12 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         readerPanel.disposePanel();
     }
 
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        SwingUtilities.invokeLater(this::applySidebarCollapsedState);
+    }
+
     private void buildUi() {
         setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 6));
         setBackground(UIUtil.getPanelBackground());
@@ -154,15 +160,23 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         onlineReadButton.addActionListener(event -> importWebBook());
         tomatoDownloadButton.addActionListener(event -> importTomatoBook());
 
-        toolbar = new JPanel(new BorderLayout(4, 0));
+        toolbar = new JPanel(new BorderLayout(6, 0));
         toolbar.setOpaque(false);
+        toolbar.setBorder(JBUI.Borders.empty(4, 0, 4, 0));
+        sidebarToggleButton = createSidebarToggleButton();
         topToolbarsToggleButton = createTopToolbarsToggleButton();
+        JPanel toolbarControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        toolbarControls.setOpaque(false);
+        toolbarControls.add(sidebarToggleButton);
+        toolbarControls.add(topToolbarsToggleButton);
         importToolbarActions.setOpaque(false);
+        importToolbarActions.setLayout(new FlowLayout(FlowLayout.LEFT, 4, 0));
         importToolbarActions.add(importButton);
         importToolbarActions.add(onlineReadButton);
         importToolbarActions.add(tomatoDownloadButton);
-        toolbar.add(topToolbarsToggleButton, BorderLayout.WEST);
-        toolbar.add(importToolbarActions, BorderLayout.CENTER);
+        toolbar.add(toolbarControls, BorderLayout.WEST);
+        toolbar.add(readerPanel.getChapterMetaLabel(), BorderLayout.CENTER);
+        toolbar.add(importToolbarActions, BorderLayout.EAST);
 
         configureList(libraryList, message("sidebar.empty.library"));
         configureList(recentList, message("sidebar.empty.recent"));
@@ -216,25 +230,19 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         add(toolbar, BorderLayout.NORTH);
         add(splitPane, BorderLayout.CENTER);
         updateTopToolbarsCollapsedState();
+        SwingUtilities.invokeLater(this::applySidebarCollapsedState);
     }
 
     private JPanel createSidebar() {
-        JPanel sidebar = new JPanel(new BorderLayout(0, 2));
+        JPanel sidebar = new JPanel(new BorderLayout(0, 6));
         sidebar.setOpaque(false);
-        sidebar.setBorder(JBUI.Borders.empty());
+        sidebar.setBorder(JBUI.Borders.empty(4, 0, 0, 6));
 
-        readerControlsToggleButton = createTopToolbarsToggleButton();
-        sidebarToggleButton = createSidebarToggleButton();
-        JPanel sidebarHeader = new JPanel();
+        JPanel sidebarHeader = new JPanel(new BorderLayout(4, 4));
         sidebarHeader.setOpaque(false);
-        sidebarHeader.setLayout(new BoxLayout(sidebarHeader, BoxLayout.Y_AXIS));
-        readerControlsToggleButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-        sidebarToggleButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-        sidebarHeader.add(readerControlsToggleButton);
-        sidebarHeader.add(sidebarToggleButton);
 
-        sidebarSections.setOpaque(false);
-        sidebarSections.setLayout(new BoxLayout(sidebarSections, BoxLayout.Y_AXIS));
+        sidebarTabs.setOpaque(false);
+        sidebarTabs.setLayout(new FlowLayout(FlowLayout.LEFT, 4, 0));
 
         configureSectionContent(librarySectionContent, libraryList);
         configureSectionContent(recentSectionContent, recentList);
@@ -244,14 +252,15 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         recentSectionButton = createSectionButton(message("sidebar.section.recent"), SECTION_RECENT, false);
         bookmarkSectionButton = createSectionButton(message("sidebar.section.bookmarks"), SECTION_BOOKMARKS, false);
 
-        sidebarSections.add(librarySectionButton);
-        sidebarSections.add(librarySectionContent);
-        sidebarSections.add(Box.createVerticalStrut(4));
-        sidebarSections.add(recentSectionButton);
-        sidebarSections.add(recentSectionContent);
-        sidebarSections.add(Box.createVerticalStrut(4));
-        sidebarSections.add(bookmarkSectionButton);
-        sidebarSections.add(bookmarkSectionContent);
+        sidebarTabs.add(librarySectionButton);
+        sidebarTabs.add(recentSectionButton);
+        sidebarTabs.add(bookmarkSectionButton);
+        sidebarHeader.add(sidebarTabs, BorderLayout.CENTER);
+
+        sidebarSections.setOpaque(false);
+        sidebarSections.add(librarySectionContent, SECTION_LIBRARY);
+        sidebarSections.add(recentSectionContent, SECTION_RECENT);
+        sidebarSections.add(bookmarkSectionContent, SECTION_BOOKMARKS);
 
         sidebar.add(sidebarHeader, BorderLayout.NORTH);
         sidebar.add(sidebarSections, BorderLayout.CENTER);
@@ -292,7 +301,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
 
     private void configureSectionContent(JPanel sectionContent, JList<?> list) {
         sectionContent.setOpaque(false);
-        sectionContent.setBorder(JBUI.Borders.empty(2, 0, 6, 0));
+        sectionContent.setBorder(JBUI.Borders.empty(0, 0, 6, 0));
         sectionContent.add(createListScrollPane(list), BorderLayout.CENTER);
         sectionContent.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
     }
@@ -327,9 +336,10 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         button.setHorizontalAlignment(SwingConstants.LEFT);
         button.setVerticalAlignment(SwingConstants.CENTER);
         button.setFocusPainted(false);
-        button.setBorder(JBUI.Borders.empty(7, 10));
-        button.setPreferredSize(new Dimension(220, 34));
-        button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
+        button.setBorder(JBUI.Borders.empty(6, 10));
+        button.setPreferredSize(new Dimension(76, 30));
+        button.setMinimumSize(new Dimension(64, 30));
+        button.setMaximumSize(new Dimension(96, 30));
         button.setOpaque(true);
         button.setFont(button.getFont().deriveFont(Font.BOLD, 12f));
         styleSectionButton(button, selected);
@@ -345,9 +355,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         boolean recentSelected = SECTION_RECENT.equals(sectionKey);
         boolean bookmarkSelected = SECTION_BOOKMARKS.equals(sectionKey);
 
-        librarySectionContent.setVisible(librarySelected);
-        recentSectionContent.setVisible(recentSelected);
-        bookmarkSectionContent.setVisible(bookmarkSelected);
+        ((CardLayout) sidebarSections.getLayout()).show(sidebarSections, sectionKey);
 
         refreshSectionButton(librarySectionButton, librarySelected);
         refreshSectionButton(recentSectionButton, recentSelected);
@@ -371,15 +379,9 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
             return;
         }
         boolean expanded = !topToolbarsCollapsed;
-        if (toolbar != null) {
-            toolbar.setVisible(expanded);
-        }
+        toolbar.setVisible(true);
         importToolbarActions.setVisible(expanded);
         readerPanel.setControlsCollapsed(topToolbarsCollapsed);
-        if (readerControlsToggleButton != null) {
-            readerControlsToggleButton.setVisible(topToolbarsCollapsed);
-            readerControlsToggleButton.setText(topToolbarsCollapsed ? "\u203a" : "\u2039");
-        }
         topToolbarsToggleButton.setText(topToolbarsCollapsed ? "\u203a" : "\u2039");
         topToolbarsToggleButton.setToolTipText(topToolbarsCollapsed ? message("toolbar.tooltip.expand") : message("toolbar.tooltip.collapse"));
         revalidate();
@@ -391,6 +393,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
             return;
         }
         int width = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
+        sidebarTabs.setVisible(!sidebarCollapsed);
         sidebarSections.setVisible(!sidebarCollapsed);
         sidebarToggleButton.setText(sidebarCollapsed ? "\u203a" : "\u2039");
         sidebarToggleButton.setToolTipText(sidebarCollapsed ? message("sidebar.tooltip.expand") : message("sidebar.tooltip.collapse"));
@@ -422,7 +425,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         button.setForeground(selected ? selectedForeground : idleForeground);
         button.setBorder(JBUI.Borders.compound(
             JBUI.Borders.customLine(selected ? selectedBackground : idleBorder, 0, 0, 1, 0),
-            JBUI.Borders.empty(7, 10)
+            JBUI.Borders.empty(6, 10)
         ));
     }
 

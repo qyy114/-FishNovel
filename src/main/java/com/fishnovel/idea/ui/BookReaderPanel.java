@@ -73,6 +73,7 @@ public final class BookReaderPanel extends JPanel {
     private final JScrollPane scrollPane = new JScrollPane(textPane);
     private final JPanel readerShell = new JPanel(new GridBagLayout());
     private final JPanel readerCard = new JPanel(new BorderLayout());
+    private final JPanel topPanel = new JPanel(new BorderLayout(0, 3));
     private final JPanel controlPanel = new JPanel(new WrappingFlowLayout(FlowLayout.LEFT, 4, 4));
     private final JPanel bottomNavigationPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 4));
     private final JButton bookmarkButton = new JButton(message("reader.button.addBookmark"));
@@ -129,7 +130,6 @@ public final class BookReaderPanel extends JPanel {
         controlPanel.add(themeSelector);
         controlPanel.add(bookmarkButton);
 
-        JPanel topPanel = new JPanel(new BorderLayout(0, 3));
         topPanel.setOpaque(false);
         topPanel.add(header, BorderLayout.NORTH);
         topPanel.add(controlPanel, BorderLayout.SOUTH);
@@ -224,6 +224,10 @@ public final class BookReaderPanel extends JPanel {
     public void setControlsCollapsed(boolean collapsed) {
         controlsCollapsed = collapsed;
         updateControlsCollapsedState();
+    }
+
+    public JBLabel getChapterMetaLabel() {
+        return chapterMetaLabel;
     }
 
     public void refreshCurrentBook() {
@@ -532,6 +536,7 @@ public final class BookReaderPanel extends JPanel {
     }
 
     private void updateControlsCollapsedState() {
+        topPanel.setVisible(!controlsCollapsed);
         controlPanel.setVisible(!controlsCollapsed);
         revalidate();
         repaint();
