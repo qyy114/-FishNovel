@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.fishnovel.idea"
-version = "1.0.6"
+version = "1.0.7"
 
 val signingProperties = Properties().apply {
     val file = layout.projectDirectory.file("certificates/signing.local.properties").asFile
@@ -45,6 +45,7 @@ intellijPlatform {
         """.trimIndent()
         changeNotes = """
             <ul>
+                <li>1.0.7: Open the sidebar and reader toolbars by default so the full navigation is visible on first launch.</li>
                 <li>1.0.6: Replaced the hidden split pane with fixed sidebar layout so the navigation panel opens at full width on first display.</li>
                 <li>1.0.5: Fixed the sidebar's first expanded layout by syncing the split pane after the tool window is shown and resized.</li>
                 <li>1.0.4: Reset the tool-window layout with a cleaner sidebar switcher and refined compact reader controls.</li>

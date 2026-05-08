@@ -90,7 +90,7 @@ public final class BookReaderPanel extends JPanel {
     private RemoteChapterNavigation remoteNavigation;
     private boolean adjusting;
     private boolean loading;
-    private boolean controlsCollapsed = true;
+    private boolean controlsCollapsed = false;
 
     public BookReaderPanel(Project project, Runnable onStateChanged) {
         super(new BorderLayout());

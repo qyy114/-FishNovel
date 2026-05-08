@@ -100,8 +100,8 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     private JToggleButton recentSectionButton;
     private JToggleButton bookmarkSectionButton;
     private String activeSection = SECTION_LIBRARY;
-    private boolean topToolbarsCollapsed = true;
-    private boolean sidebarCollapsed;
+    private boolean topToolbarsCollapsed = false;
+    private boolean sidebarCollapsed = false;
     private boolean suppressLibraryOpen;
     private BookShelfItem libraryPopupTarget;
 
