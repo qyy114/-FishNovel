@@ -151,7 +151,7 @@ public final class BookReaderPanel extends JPanel {
         bottomNavigationPanel.add(previousChapterButton);
         bottomNavigationPanel.add(nextChapterButton);
         readerCard.add(bottomNavigationPanel, BorderLayout.SOUTH);
-        readerCard.setPreferredSize(new Dimension(780, 0));
+        readerCard.setMinimumSize(new Dimension(0, 0));
         readerCard.setBorder(BorderFactory.createEmptyBorder());
 
         GridBagConstraints constraints = new GridBagConstraints();
@@ -162,6 +162,7 @@ public final class BookReaderPanel extends JPanel {
         constraints.fill = GridBagConstraints.BOTH;
         constraints.insets = new Insets(0, 0, 0, 0);
         readerShell.add(readerCard, constraints);
+        readerShell.setMinimumSize(new Dimension(0, 0));
         readerShell.setOpaque(true);
 
         add(topPanel, BorderLayout.NORTH);

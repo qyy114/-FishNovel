@@ -38,8 +38,6 @@ import java.awt.Font;
 import java.awt.KeyboardFocusManager;
 import java.awt.KeyEventDispatcher;
 import java.awt.Window;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -59,14 +57,11 @@ import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
-import javax.swing.JSplitPane;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
-import javax.swing.plaf.basic.BasicSplitPaneDivider;
-import javax.swing.plaf.basic.BasicSplitPaneUI;
 
 public final class FishNovelToolWindowPanel extends JPanel implements Disposable {
     private static final String SECTION_LIBRARY = "library";
@@ -97,7 +92,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     private final JPanel bookmarkSectionContent = new JPanel(new BorderLayout());
 
     private JPanel toolbar;
-    private JSplitPane splitPane;
+    private JPanel contentPanel;
     private JPanel sidebar;
     private JButton topToolbarsToggleButton;
     private JButton sidebarToggleButton;
@@ -224,14 +219,14 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
 
         sidebar = createSidebar();
 
-        splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, sidebar, readerPanel);
-        splitPane.setResizeWeight(0.22);
-        configureSplitPane(splitPane);
-        installSplitPaneLayoutSync();
+        contentPanel = new JPanel(new BorderLayout(0, 0));
+        contentPanel.setOpaque(false);
+        contentPanel.add(sidebar, BorderLayout.WEST);
+        contentPanel.add(readerPanel, BorderLayout.CENTER);
         applySidebarCollapsedState();
 
         add(toolbar, BorderLayout.NORTH);
-        add(splitPane, BorderLayout.CENTER);
+        add(contentPanel, BorderLayout.CENTER);
         updateTopToolbarsCollapsedState();
         SwingUtilities.invokeLater(this::applySidebarCollapsedState);
     }
@@ -396,39 +391,21 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
             return;
         }
         int width = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
+        sidebar.setVisible(!sidebarCollapsed);
         sidebarTabs.setVisible(!sidebarCollapsed);
         sidebarSections.setVisible(!sidebarCollapsed);
         sidebarToggleButton.setText(sidebarCollapsed ? "\u203a" : "\u2039");
         sidebarToggleButton.setToolTipText(sidebarCollapsed ? message("sidebar.tooltip.expand") : message("sidebar.tooltip.collapse"));
-        sidebar.setPreferredSize(new Dimension(width, 520));
-        sidebar.setMinimumSize(new Dimension(width, 320));
-        syncSidebarDividerLocation();
+        Dimension sidebarSize = new Dimension(width, 0);
+        sidebar.setPreferredSize(sidebarSize);
+        sidebar.setMinimumSize(sidebarSize);
+        sidebar.setMaximumSize(new Dimension(width, Integer.MAX_VALUE));
+        if (contentPanel != null) {
+            contentPanel.revalidate();
+            contentPanel.repaint();
+        }
         revalidate();
         repaint();
-    }
-
-    private void installSplitPaneLayoutSync() {
-        if (splitPane != null) {
-            splitPane.addComponentListener(new ComponentAdapter() {
-                @Override
-                public void componentShown(ComponentEvent event) {
-                    SwingUtilities.invokeLater(FishNovelToolWindowPanel.this::syncSidebarDividerLocation);
-                }
-
-                @Override
-                public void componentResized(ComponentEvent event) {
-                    SwingUtilities.invokeLater(FishNovelToolWindowPanel.this::syncSidebarDividerLocation);
-                }
-            });
-        }
-    }
-
-    private void syncSidebarDividerLocation() {
-        if (splitPane == null || sidebar == null || splitPane.getWidth() <= 0) {
-            return;
-        }
-        int width = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
-        splitPane.setDividerLocation(width);
     }
 
     private void refreshSectionButton(JToggleButton button, boolean selected) {
@@ -544,29 +521,6 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         scrollPane.setBackground(UIUtil.getPanelBackground());
         scrollPane.getViewport().setBackground(UIUtil.getPanelBackground());
         return scrollPane;
-    }
-
-    private void configureSplitPane(JSplitPane splitPane) {
-        splitPane.setBorder(BorderFactory.createEmptyBorder());
-        splitPane.setOpaque(false);
-        splitPane.setContinuousLayout(true);
-        splitPane.setDividerSize(0);
-        splitPane.setBackground(UIUtil.getPanelBackground());
-        splitPane.setUI(new BasicSplitPaneUI() {
-            @Override
-            public BasicSplitPaneDivider createDefaultDivider() {
-                BasicSplitPaneDivider divider = new BasicSplitPaneDivider(this) {
-                    @Override
-                    public void paint(java.awt.Graphics graphics) {
-                        graphics.setColor(UIUtil.getPanelBackground());
-                        graphics.fillRect(0, 0, getWidth(), getHeight());
-                    }
-                };
-                divider.setBorder(BorderFactory.createEmptyBorder());
-                divider.setBackground(UIUtil.getPanelBackground());
-                return divider;
-            }
-        });
     }
 
     private void installLibraryPopupMenu() {
