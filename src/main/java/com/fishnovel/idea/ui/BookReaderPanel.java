@@ -231,6 +231,13 @@ public final class BookReaderPanel extends JPanel {
         return chapterMetaLabel;
     }
 
+    public void refreshChromeLayout() {
+        controlPanel.invalidate();
+        topPanel.invalidate();
+        revalidate();
+        repaint();
+    }
+
     public void refreshCurrentBook() {
         if (currentDocument == null) {
             Messages.showWarningDialog(project, message("reader.warning.noBook"), message("plugin.name"));

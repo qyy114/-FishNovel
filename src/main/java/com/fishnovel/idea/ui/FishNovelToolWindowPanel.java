@@ -391,7 +391,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
             return;
         }
         int width = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
-        sidebar.setVisible(!sidebarCollapsed);
+        sidebar.setVisible(true);
         sidebarTabs.setVisible(!sidebarCollapsed);
         sidebarSections.setVisible(!sidebarCollapsed);
         sidebarToggleButton.setText(sidebarCollapsed ? "\u203a" : "\u2039");
@@ -404,6 +404,8 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
             contentPanel.revalidate();
             contentPanel.repaint();
         }
+        readerPanel.refreshChromeLayout();
+        SwingUtilities.invokeLater(readerPanel::refreshChromeLayout);
         revalidate();
         repaint();
     }
