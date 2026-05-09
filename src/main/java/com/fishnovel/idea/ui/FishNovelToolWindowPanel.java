@@ -36,6 +36,7 @@ import java.awt.Dialog;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.awt.Insets;
 import java.awt.KeyboardFocusManager;
 import java.awt.KeyEventDispatcher;
 import java.awt.Window;
@@ -86,6 +87,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     private final JBList<Bookmark> bookmarkList = new JBList<>(bookmarkModel);
     private final ButtonGroup sectionButtonGroup = new ButtonGroup();
     private final JPanel importToolbarActions = new JPanel();
+    private final JPanel toolbarActionPanel = new JPanel();
     private final JPanel sidebarTabs = new JPanel();
     private final JPanel sidebarSections = new JPanel(new CardLayout());
     private final JPanel librarySectionContent = new JPanel(new BorderLayout());
@@ -147,13 +149,6 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         setBorder(BorderFactory.createEmptyBorder(0, 0, 4, 6));
         setBackground(UIUtil.getPanelBackground());
 
-        JButton importButton = createToolbarButton(message("toolbar.importBook"));
-        JButton onlineReadButton = createToolbarButton(message("toolbar.onlineRead"));
-        JButton tomatoDownloadButton = createToolbarButton(message("toolbar.tomatoDownload"));
-        importButton.addActionListener(event -> importBook());
-        onlineReadButton.addActionListener(event -> importWebBook());
-        tomatoDownloadButton.addActionListener(event -> importTomatoBook());
-
         toolbar = new JPanel(new BorderLayout(8, 0));
         toolbar.setOpaque(false);
         toolbar.setBorder(JBUI.Borders.compound(
@@ -165,15 +160,20 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         JPanel toolbarControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 0));
         toolbarControls.setOpaque(false);
         toolbarControls.add(sidebarToggleButton);
-        toolbarControls.add(topToolbarsToggleButton);
+        JButton importMenuButton = createImportMenuButton();
         importToolbarActions.setOpaque(false);
         importToolbarActions.setLayout(new FlowLayout(FlowLayout.RIGHT, 4, 0));
-        importToolbarActions.add(importButton);
-        importToolbarActions.add(onlineReadButton);
-        importToolbarActions.add(tomatoDownloadButton);
+        importToolbarActions.add(importMenuButton);
+        toolbarActionPanel.setOpaque(false);
+        toolbarActionPanel.setLayout(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        toolbarActionPanel.add(importToolbarActions);
+        toolbarActionPanel.add(topToolbarsToggleButton);
+        JBLabel chapterMetaLabel = readerPanel.getChapterMetaLabel();
+        chapterMetaLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        chapterMetaLabel.setFont(chapterMetaLabel.getFont().deriveFont(Font.BOLD, 12f));
         toolbar.add(toolbarControls, BorderLayout.WEST);
-        toolbar.add(readerPanel.getChapterMetaLabel(), BorderLayout.CENTER);
-        toolbar.add(importToolbarActions, BorderLayout.EAST);
+        toolbar.add(chapterMetaLabel, BorderLayout.CENTER);
+        toolbar.add(toolbarActionPanel, BorderLayout.EAST);
 
         configureList(libraryList, message("sidebar.empty.library"));
         configureList(recentList, message("sidebar.empty.recent"));
@@ -313,6 +313,23 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         return button;
     }
 
+    private JButton createImportMenuButton() {
+        JButton button = createToolbarButton(message("toolbar.importBook"));
+        button.setMargin(new Insets(2, 6, 2, 6));
+        JPopupMenu menu = new JPopupMenu();
+        addImportMenuItem(menu, message("toolbar.importBook"), this::importBook);
+        addImportMenuItem(menu, message("toolbar.onlineRead"), this::importWebBook);
+        addImportMenuItem(menu, message("toolbar.tomatoDownload"), this::importTomatoBook);
+        button.addActionListener(event -> menu.show(button, 0, button.getHeight()));
+        return button;
+    }
+
+    private void addImportMenuItem(JPopupMenu menu, String text, Runnable action) {
+        JMenuItem item = new JMenuItem(text);
+        item.addActionListener(event -> action.run());
+        menu.add(item);
+    }
+
     private void styleSubtleButton(JButton button) {
         Color panelBackground = UIUtil.getPanelBackground();
         Color labelColor = UIUtil.getLabelForeground();
@@ -322,7 +339,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
 
     private void configureList(JBList<?> list, String emptyText) {
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        list.setFixedCellHeight(54);
+        list.setFixedCellHeight(40);
         list.setBorder(BorderFactory.createEmptyBorder());
         list.setBackground(UIUtil.getPanelBackground());
         list.getEmptyText().setText(emptyText);
@@ -448,22 +465,22 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         panel.setOpaque(true);
         panel.setBorder(JBUI.Borders.compound(
             JBUI.Borders.customLine(selected ? selectedBackground : mix(baseBackground, UIUtil.getLabelForeground(), 0.08f), 0, 0, 1, 0),
-            JBUI.Borders.empty(6, 10)
+            JBUI.Borders.empty(4, 8)
         ));
         panel.setBackground(selected ? selectedBackground : baseBackground);
 
         JBLabel titleLabel = new JBLabel(title);
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, titleLabel.getFont().getSize2D()));
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 12f));
         titleLabel.setForeground(titleColor);
         titleLabel.setToolTipText(title);
 
         String detail = compactDetail(subtitle, meta);
         JBLabel detailLabel = new JBLabel(detail);
         detailLabel.setForeground(subtitleColor);
-        detailLabel.setFont(detailLabel.getFont().deriveFont(Font.PLAIN, detailLabel.getFont().getSize2D() - 1f));
+        detailLabel.setFont(detailLabel.getFont().deriveFont(Font.PLAIN, 11f));
         detailLabel.setToolTipText(detail);
 
-        JPanel center = new JPanel(new BorderLayout(0, 2));
+        JPanel center = new JPanel(new BorderLayout(0, 0));
         center.setOpaque(false);
         center.add(titleLabel, BorderLayout.NORTH);
         center.add(detailLabel, BorderLayout.CENTER);

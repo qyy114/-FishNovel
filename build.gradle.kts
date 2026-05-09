@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.fishnovel.idea"
-version = "1.0.11"
+version = "1.0.12"
 
 val signingProperties = Properties().apply {
     val file = layout.projectDirectory.file("certificates/signing.local.properties").asFile
@@ -45,6 +45,7 @@ intellijPlatform {
         """.trimIndent()
         changeNotes = """
             <ul>
+                <li>1.0.12: Refine the MiMo-designed toolbar layout and rename import actions to local import, online reading, and Tomato download.</li>
                 <li>1.0.11: Redesign the tool-window layout with clearer toolbar grouping, segmented sidebar tabs, and a more compact reader control area.</li>
                 <li>1.0.10: Refresh the packaged build after the latest tool-window stability and layout fixes.</li>
                 <li>1.0.9: Avoid sidebar layout refreshes while the tool window is being attached and remove the stale empty reader header that could leave top whitespace.</li>

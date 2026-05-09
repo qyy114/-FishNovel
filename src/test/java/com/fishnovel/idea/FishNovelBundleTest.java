@@ -28,7 +28,7 @@ public class FishNovelBundleTest {
         ResourceBundle bundle = bundle(Locale.ROOT);
 
         Assert.assertEquals("Open FishNovel", bundle.getString("action.FishNovel.OpenToolWindowAction.text"));
-        Assert.assertEquals("Import Novel", bundle.getString("toolbar.importBook"));
+        Assert.assertEquals("Local Import", bundle.getString("toolbar.importBook"));
         Assert.assertEquals("Follow System", bundle.getString("reader.theme.auto"));
         Assert.assertEquals("Chapter {0} / {1} - {2}", bundle.getString("reader.chapterMeta"));
         Assert.assertEquals("{0} bookmarks", bundle.getString("sidebar.bookmarkCount"));
@@ -39,7 +39,7 @@ public class FishNovelBundleTest {
         ResourceBundle bundle = bundle(Locale.SIMPLIFIED_CHINESE);
 
         Assert.assertEquals("打开 FishNovel", bundle.getString("action.FishNovel.OpenToolWindowAction.text"));
-        Assert.assertEquals("导入小说", bundle.getString("toolbar.importBook"));
+        Assert.assertEquals("本地导入", bundle.getString("toolbar.importBook"));
         Assert.assertEquals("跟随系统", bundle.getString("reader.theme.auto"));
         Assert.assertEquals("第 {0} / {1} 章 · {2}", bundle.getString("reader.chapterMeta"));
         Assert.assertEquals("{0} 个书签", bundle.getString("sidebar.bookmarkCount"));

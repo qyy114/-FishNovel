@@ -46,9 +46,11 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSeparator;
 import javax.swing.JTextPane;
 import javax.swing.JViewport;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
@@ -133,7 +135,9 @@ public final class BookReaderPanel extends JPanel {
         actionControls.add(bookmarkButton);
 
         controlPanel.add(chapterControls);
+        controlPanel.add(createToolbarSeparator());
         controlPanel.add(readingControls);
+        controlPanel.add(createToolbarSeparator());
         controlPanel.add(actionControls);
 
         topPanel.setOpaque(false);
@@ -176,9 +180,19 @@ public final class BookReaderPanel extends JPanel {
     }
 
     private JPanel createControlGroup() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 0));
         panel.setOpaque(false);
+        panel.setBorder(BorderFactory.createEmptyBorder(0, 2, 0, 2));
         return panel;
+    }
+
+    private JSeparator createToolbarSeparator() {
+        JSeparator separator = new JSeparator(SwingConstants.VERTICAL);
+        Dimension size = new Dimension(1, 20);
+        separator.setPreferredSize(size);
+        separator.setMinimumSize(size);
+        separator.setMaximumSize(size);
+        return separator;
     }
 
     private JBLabel createControlLabel(String text) {
