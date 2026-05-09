@@ -73,9 +73,9 @@ public final class BookReaderPanel extends JPanel {
     private final JScrollPane scrollPane = new JScrollPane(textPane);
     private final JPanel readerShell = new JPanel(new GridBagLayout());
     private final JPanel readerCard = new JPanel(new BorderLayout());
-    private final JPanel topPanel = new JPanel(new BorderLayout(0, 3));
-    private final JPanel controlPanel = new JPanel(new WrappingFlowLayout(FlowLayout.LEFT, 4, 4));
-    private final JPanel bottomNavigationPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 4));
+    private final JPanel topPanel = new JPanel(new BorderLayout(0, 0));
+    private final JPanel controlPanel = new JPanel(new WrappingFlowLayout(FlowLayout.LEFT, 8, 4));
+    private final JPanel bottomNavigationPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 5));
     private final JButton bookmarkButton = new JButton(message("reader.button.addBookmark"));
     private final JButton refreshButton = new JButton(message("reader.button.refresh"));
     private final JButton jumpButton = new JButton(message("reader.button.jump"));
@@ -110,20 +110,31 @@ public final class BookReaderPanel extends JPanel {
         chapterMetaLabel.setFont(chapterMetaLabel.getFont().deriveFont(Font.PLAIN, 12f));
 
         controlPanel.setOpaque(false);
-        controlPanel.add(new JBLabel(message("reader.label.chapter")));
-        chapterSelector.setPreferredSize(new Dimension(168, 28));
-        controlPanel.add(chapterSelector);
-        controlPanel.add(jumpButton);
-        controlPanel.add(refreshButton);
+        controlPanel.setBorder(JBUI.Borders.empty(3, 0, 5, 0));
+        JPanel chapterControls = createControlGroup();
+        chapterControls.add(createControlLabel(message("reader.label.chapter")));
+        chapterSelector.setPreferredSize(new Dimension(188, 28));
+        chapterControls.add(chapterSelector);
+        chapterControls.add(jumpButton);
+        chapterControls.add(refreshButton);
         previousChapterButton.setToolTipText(message("reader.button.previous"));
         nextChapterButton.setToolTipText(message("reader.button.next"));
-        controlPanel.add(fontMinusButton);
-        controlPanel.add(fontPlusButton);
-        controlPanel.add(spacingMinusButton);
-        controlPanel.add(spacingPlusButton);
-        controlPanel.add(new JBLabel(message("reader.label.theme")));
-        controlPanel.add(themeSelector);
-        controlPanel.add(bookmarkButton);
+
+        JPanel readingControls = createControlGroup();
+        readingControls.add(fontMinusButton);
+        readingControls.add(fontPlusButton);
+        readingControls.add(spacingMinusButton);
+        readingControls.add(spacingPlusButton);
+        readingControls.add(createControlLabel(message("reader.label.theme")));
+        themeSelector.setPreferredSize(new Dimension(118, 28));
+        readingControls.add(themeSelector);
+
+        JPanel actionControls = createControlGroup();
+        actionControls.add(bookmarkButton);
+
+        controlPanel.add(chapterControls);
+        controlPanel.add(readingControls);
+        controlPanel.add(actionControls);
 
         topPanel.setOpaque(false);
         topPanel.add(controlPanel, BorderLayout.CENTER);
@@ -142,6 +153,7 @@ public final class BookReaderPanel extends JPanel {
 
         readerCard.add(scrollPane, BorderLayout.CENTER);
         bottomNavigationPanel.setOpaque(false);
+        bottomNavigationPanel.setBorder(JBUI.Borders.empty(3, 0, 0, 0));
         bottomNavigationPanel.add(previousChapterButton);
         bottomNavigationPanel.add(nextChapterButton);
         readerCard.add(bottomNavigationPanel, BorderLayout.SOUTH);
@@ -161,6 +173,18 @@ public final class BookReaderPanel extends JPanel {
 
         add(topPanel, BorderLayout.NORTH);
         add(readerShell, BorderLayout.CENTER);
+    }
+
+    private JPanel createControlGroup() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        panel.setOpaque(false);
+        return panel;
+    }
+
+    private JBLabel createControlLabel(String text) {
+        JBLabel label = new JBLabel(text);
+        label.setForeground(UIUtil.getContextHelpForeground());
+        return label;
     }
 
     private void registerListeners() {

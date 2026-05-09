@@ -35,6 +35,7 @@ import java.awt.Dimension;
 import java.awt.Dialog;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GridLayout;
 import java.awt.KeyboardFocusManager;
 import java.awt.KeyEventDispatcher;
 import java.awt.Window;
@@ -67,7 +68,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     private static final String SECTION_LIBRARY = "library";
     private static final String SECTION_RECENT = "recent";
     private static final String SECTION_BOOKMARKS = "bookmarks";
-    private static final int SIDEBAR_EXPANDED_WIDTH = 248;
+    private static final int SIDEBAR_EXPANDED_WIDTH = 260;
     private static final int SIDEBAR_COLLAPSED_WIDTH = 0;
     private static final int CHROME_TOGGLE_SIZE = 22;
 
@@ -143,7 +144,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     }
 
     private void buildUi() {
-        setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 6));
+        setBorder(BorderFactory.createEmptyBorder(0, 0, 4, 6));
         setBackground(UIUtil.getPanelBackground());
 
         JButton importButton = createToolbarButton(message("toolbar.importBook"));
@@ -153,17 +154,20 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         onlineReadButton.addActionListener(event -> importWebBook());
         tomatoDownloadButton.addActionListener(event -> importTomatoBook());
 
-        toolbar = new JPanel(new BorderLayout(6, 0));
+        toolbar = new JPanel(new BorderLayout(8, 0));
         toolbar.setOpaque(false);
-        toolbar.setBorder(JBUI.Borders.empty(4, 0, 4, 0));
+        toolbar.setBorder(JBUI.Borders.compound(
+            JBUI.Borders.customLine(mix(UIUtil.getPanelBackground(), UIUtil.getLabelForeground(), 0.08f), 0, 0, 1, 0),
+            JBUI.Borders.empty(4, 0, 5, 0)
+        ));
         sidebarToggleButton = createSidebarToggleButton();
         topToolbarsToggleButton = createTopToolbarsToggleButton();
-        JPanel toolbarControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        JPanel toolbarControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 0));
         toolbarControls.setOpaque(false);
         toolbarControls.add(sidebarToggleButton);
         toolbarControls.add(topToolbarsToggleButton);
         importToolbarActions.setOpaque(false);
-        importToolbarActions.setLayout(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        importToolbarActions.setLayout(new FlowLayout(FlowLayout.RIGHT, 4, 0));
         importToolbarActions.add(importButton);
         importToolbarActions.add(onlineReadButton);
         importToolbarActions.add(tomatoDownloadButton);
@@ -229,13 +233,13 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
     private JPanel createSidebar() {
         JPanel sidebar = new JPanel(new BorderLayout(0, 6));
         sidebar.setOpaque(false);
-        sidebar.setBorder(JBUI.Borders.empty(4, 0, 0, 6));
+        sidebar.setBorder(JBUI.Borders.empty(5, 0, 0, 8));
 
-        JPanel sidebarHeader = new JPanel(new BorderLayout(4, 4));
+        JPanel sidebarHeader = new JPanel(new BorderLayout(0, 0));
         sidebarHeader.setOpaque(false);
 
         sidebarTabs.setOpaque(false);
-        sidebarTabs.setLayout(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        sidebarTabs.setLayout(new GridLayout(1, 0, 4, 0));
 
         configureSectionContent(librarySectionContent, libraryList);
         configureSectionContent(recentSectionContent, recentList);
@@ -303,7 +307,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         JButton button = new JButton(text);
         button.setFocusPainted(false);
         button.setFont(button.getFont().deriveFont(Font.PLAIN, 12f));
-        button.setBorder(JBUI.Borders.empty(8, 14));
+        button.setBorder(JBUI.Borders.empty(6, 10));
         button.setOpaque(true);
         styleSubtleButton(button);
         return button;
@@ -326,13 +330,12 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
 
     private JToggleButton createSectionButton(String text, String sectionKey, boolean selected) {
         JToggleButton button = new JToggleButton(text);
-        button.setHorizontalAlignment(SwingConstants.LEFT);
+        button.setHorizontalAlignment(SwingConstants.CENTER);
         button.setVerticalAlignment(SwingConstants.CENTER);
         button.setFocusPainted(false);
-        button.setBorder(JBUI.Borders.empty(6, 10));
-        button.setPreferredSize(new Dimension(76, 30));
-        button.setMinimumSize(new Dimension(64, 30));
-        button.setMaximumSize(new Dimension(96, 30));
+        button.setBorder(JBUI.Borders.empty(6, 8));
+        button.setPreferredSize(new Dimension(0, 30));
+        button.setMinimumSize(new Dimension(0, 30));
         button.setOpaque(true);
         button.setFont(button.getFont().deriveFont(Font.BOLD, 12f));
         styleSectionButton(button, selected);
@@ -430,7 +433,7 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
         button.setForeground(selected ? selectedForeground : idleForeground);
         button.setBorder(JBUI.Borders.compound(
             JBUI.Borders.customLine(selected ? selectedBackground : idleBorder, 0, 0, 1, 0),
-            JBUI.Borders.empty(6, 10)
+            JBUI.Borders.empty(6, 8)
         ));
     }
 
