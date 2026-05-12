@@ -89,6 +89,10 @@ public final class FishNovelProjectService {
         tomatoDownloaderService.setDownloaderPath(path);
     }
 
+    public Path getTomatoDownloaderLogFile() {
+        return tomatoDownloaderService.getLogFile();
+    }
+
     public BookDocument importTomatoBook(String input) throws IOException {
         return parseTomatoDownload(tomatoDownloaderService.download(input));
     }

@@ -716,12 +716,48 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
                         readerPanel.openBook(document);
                     });
                 } catch (IOException ex) {
-                    ApplicationManager.getApplication().invokeLater(() ->
-                        Messages.showErrorDialog(project, message("tomato.errorPrefix") + ex.getMessage(), message("plugin.name"))
-                    );
+                    ApplicationManager.getApplication().invokeLater(() -> showTomatoDownloadError(ex));
                 }
             }
         });
+    }
+
+    private void showTomatoDownloadError(IOException ex) {
+        if (isTomatoStartupError(ex)) {
+            int choice = Messages.showYesNoDialog(
+                project,
+                tomatoErrorMessage(ex),
+                message("plugin.name"),
+                message("tomato.error.chooseExternal"),
+                message("tomato.error.cancel"),
+                Messages.getErrorIcon()
+            );
+            if (choice == Messages.YES) {
+                chooseTomatoDownloaderPath();
+            }
+            return;
+        }
+        Messages.showErrorDialog(project, tomatoErrorMessage(ex), message("plugin.name"));
+    }
+
+    private String tomatoErrorMessage(IOException ex) {
+        return message("tomato.errorPrefix")
+            + ex.getMessage()
+            + "\n\n"
+            + message("tomato.error.logPath", projectService.getTomatoDownloaderLogFile().toString())
+            + "\n"
+            + message("tomato.error.manualFallback");
+    }
+
+    private boolean isTomatoStartupError(IOException ex) {
+        String errorMessage = ex.getMessage();
+        if (errorMessage == null) {
+            return false;
+        }
+        return errorMessage.contains("Web UI did not start")
+            || errorMessage.contains("exited before Web UI became available")
+            || errorMessage.contains("No bundled Tomato-Novel-Downloader")
+            || errorMessage.contains("Bundled Tomato-Novel-Downloader");
     }
 
     private boolean ensureTomatoDownloaderPath() {
@@ -729,6 +765,10 @@ public final class FishNovelToolWindowPanel extends JPanel implements Disposable
             return true;
         }
 
+        return chooseTomatoDownloaderPath();
+    }
+
+    private boolean chooseTomatoDownloaderPath() {
         FileChooserDescriptor descriptor = new FileChooserDescriptor(true, false, false, false, false, false)
             .withTitle(message("tomato.downloader.title"))
             .withDescription(message("tomato.downloader.description"))

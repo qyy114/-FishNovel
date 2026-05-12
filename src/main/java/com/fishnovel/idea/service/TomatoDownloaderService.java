@@ -39,7 +39,6 @@ public final class TomatoDownloaderService {
     private static final long DEFAULT_START_TIMEOUT_MILLIS = 20_000L;
     private static final long DEFAULT_JOB_TIMEOUT_MILLIS = 30L * 60L * 1000L;
 
-    private final ReadingStateService stateService;
     private final Path dataDir;
     private final Path libraryDir;
     private final Path metadataFile;
@@ -49,7 +48,7 @@ public final class TomatoDownloaderService {
     private final long startTimeoutMillis;
     private final long jobTimeoutMillis;
     private final boolean externalServer;
-    private final Path downloaderPathOverride;
+    private final TomatoDownloaderResolver downloaderResolver;
 
     private URI serverBaseUri;
     private Process sidecarProcess;
@@ -64,7 +63,7 @@ public final class TomatoDownloaderService {
             DEFAULT_POLL_INTERVAL_MILLIS,
             DEFAULT_START_TIMEOUT_MILLIS,
             DEFAULT_JOB_TIMEOUT_MILLIS,
-            null
+            new BundledTomatoDownloaderResolver(stateService)
         );
     }
 
@@ -87,7 +86,7 @@ public final class TomatoDownloaderService {
             pollIntervalMillis,
             startTimeoutMillis,
             jobTimeoutMillis,
-            null
+            stateService == null ? new FixedTomatoDownloaderResolver(null) : new BundledTomatoDownloaderResolver(stateService)
         );
     }
 
@@ -102,7 +101,30 @@ public final class TomatoDownloaderService {
         long jobTimeoutMillis,
         Path downloaderPathOverride
     ) {
-        this.stateService = stateService;
+        this(
+            stateService,
+            dataDir,
+            serverBaseUri,
+            httpClient,
+            sidecarLauncher,
+            pollIntervalMillis,
+            startTimeoutMillis,
+            jobTimeoutMillis,
+            new FixedTomatoDownloaderResolver(downloaderPathOverride)
+        );
+    }
+
+    TomatoDownloaderService(
+        ReadingStateService stateService,
+        Path dataDir,
+        URI serverBaseUri,
+        HttpClient httpClient,
+        SidecarLauncher sidecarLauncher,
+        long pollIntervalMillis,
+        long startTimeoutMillis,
+        long jobTimeoutMillis,
+        TomatoDownloaderResolver downloaderResolver
+    ) {
         this.dataDir = dataDir.toAbsolutePath().normalize();
         this.libraryDir = this.dataDir.resolve("library").normalize();
         this.metadataFile = this.dataDir.resolve("fishnovel-tomato-books.json").normalize();
@@ -113,32 +135,36 @@ public final class TomatoDownloaderService {
         this.startTimeoutMillis = startTimeoutMillis;
         this.jobTimeoutMillis = jobTimeoutMillis;
         this.externalServer = serverBaseUri != null;
-        this.downloaderPathOverride = downloaderPathOverride == null ? null : downloaderPathOverride.toAbsolutePath().normalize();
+        this.downloaderResolver = downloaderResolver;
     }
 
     public boolean hasValidDownloaderPath() {
-        return getDownloaderPath()
-            .map(Files::isRegularFile)
-            .orElse(false);
+        try {
+            return getDownloaderPath()
+                .map(Files::isRegularFile)
+                .orElse(false);
+        } catch (RuntimeException ex) {
+            return false;
+        }
     }
 
     public Optional<Path> getDownloaderPath() {
-        if (downloaderPathOverride != null) {
-            return Optional.of(downloaderPathOverride);
-        }
-        if (stateService == null) {
+        if (downloaderResolver == null) {
             return Optional.empty();
         }
-        return stateService.getTomatoDownloaderPath()
-            .map(Path::of)
-            .map(path -> path.toAbsolutePath().normalize());
+        try {
+            return downloaderResolver.resolve();
+        } catch (IOException ex) {
+            return Optional.empty();
+        }
     }
 
     public void setDownloaderPath(Path path) {
-        if (stateService == null) {
-            throw new IllegalStateException("Tomato downloader path storage is not available.");
-        }
-        stateService.setTomatoDownloaderPath(path == null ? null : path.toAbsolutePath().normalize().toString());
+        downloaderResolver.setExternalPath(path);
+    }
+
+    public Path getLogFile() {
+        return dataDir.resolve("tomato-downloader.log").toAbsolutePath().normalize();
     }
 
     public synchronized TomatoDownloadResult download(String input) throws IOException {
@@ -244,9 +270,11 @@ public final class TomatoDownloaderService {
             return;
         }
 
-        Path downloaderPath = getDownloaderPath()
+        Path downloaderPath = downloaderResolver.resolve()
             .filter(Files::isRegularFile)
-            .orElseThrow(() -> new IOException("请先选择 Tomato-Novel-Downloader 可执行文件。"));
+            .orElseThrow(() -> new IOException(
+                "No bundled Tomato-Novel-Downloader is available for this system. Please choose a Windows x64 executable manually."
+            ));
         int port = reserveLocalPort();
         serverBaseUri = URI.create("http://127.0.0.1:" + port);
         Path logFile = dataDir.resolve("tomato-downloader.log");
@@ -600,6 +628,24 @@ public final class TomatoDownloaderService {
             builder.redirectErrorStream(true);
             builder.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile.toFile()));
             return builder.start();
+        }
+    }
+
+    private static final class FixedTomatoDownloaderResolver implements TomatoDownloaderResolver {
+        private final Path downloaderPath;
+
+        private FixedTomatoDownloaderResolver(Path downloaderPath) {
+            this.downloaderPath = downloaderPath == null ? null : downloaderPath.toAbsolutePath().normalize();
+        }
+
+        @Override
+        public Optional<Path> resolve() {
+            return Optional.ofNullable(downloaderPath);
+        }
+
+        @Override
+        public void setExternalPath(Path path) {
+            throw new IllegalStateException("Tomato downloader path storage is not available.");
         }
     }
 

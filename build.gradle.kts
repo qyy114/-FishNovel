@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.fishnovel.idea"
-version = "1.0.12"
+version = "2.0.0"
 
 val signingProperties = Properties().apply {
     val file = layout.projectDirectory.file("certificates/signing.local.properties").asFile
@@ -45,6 +45,7 @@ intellijPlatform {
         """.trimIndent()
         changeNotes = """
             <ul>
+                <li>2.0.0: Bundle Tomato-Novel-Downloader v2.4.9 for Windows x64, with external exe fallback and clearer startup diagnostics.</li>
                 <li>1.0.12: Refine the MiMo-designed toolbar layout and rename import actions to local import, online reading, and Tomato download.</li>
                 <li>1.0.11: Redesign the tool-window layout with clearer toolbar grouping, segmented sidebar tabs, and a more compact reader control area.</li>
                 <li>1.0.10: Refresh the packaged build after the latest tool-window stability and layout fixes.</li>
@@ -124,6 +125,7 @@ tasks.register<JavaExec>("unitTest") {
         "com.fishnovel.idea.service.ReadingProgressResolverTest",
         "com.fishnovel.idea.service.FishNovelProjectServiceTest",
         "com.fishnovel.idea.source.TomatoSourceLocationTest",
+        "com.fishnovel.idea.service.BundledTomatoDownloaderResolverTest",
         "com.fishnovel.idea.service.TomatoDownloaderServiceTest"
     )
 }
