@@ -1,47 +1,52 @@
 # FishNovel
 
-FishNovel 是一个 IntelliJ IDEA 小说阅读插件，目标是在 IDE 内提供低干扰、可记忆进度的阅读体验。插件支持本地小说、网页章节阅读、番茄小说 TXT 下载阅读、书架、最近阅读、书签、章节跳转、阅读样式调整和老板键隐藏。
+FishNovel is an IntelliJ IDEA plugin that turns the IDE into a quiet, lightweight novel reader. It supports local novels, web chapter reading, Tomato novel TXT downloads, bookshelf history, bookmarks, chapter navigation, reading style preferences, and a quick-hide boss key.
+
+## Repository Links
+
+- GitHub: https://github.com/qyy114/-FishNovel
+- Gitee: https://gitee.com/qyy114/fish-novelFishNovel
 
 <!-- Plugin description -->
 FishNovel turns IntelliJ IDEA into a lightweight novel reader with local multi-format support, web chapter reading, Tomato TXT download reading, progress memory, bookmarks, history, and theme preferences.
 <!-- Plugin description end -->
 
-## 主要功能
+## Features
 
-- 本地阅读：支持 `TXT`、`EPUB`、`Markdown`、`HTML`。
-- 网页阅读：输入章节 URL 后读取当前章节，同章分页会自动合并，上一章/下一章按需加载。
-- 番茄下载：输入番茄小说 `book_id`、分享链接或详情页链接，优先调用插件内置的 Windows x64 Tomato-Novel-Downloader 下载 TXT，然后使用 FishNovel 的 TXT 阅读器打开。
-- 阅读控制：支持章节下拉、数字跳转、上一章/下一章、刷新、字号、行距、主题和书签。
-- 阅读状态：自动保存书架、最近阅读、书签、阅读进度和阅读样式。
-- 低干扰界面：工具栏和侧边栏可收起，阅读区不显示小说名，保留紧凑章节进度。
-- 老板键：插件打开时按任意键可隐藏工具窗口；关闭状态下不影响 IDE。
+- Local reading: supports `TXT`, `EPUB`, `Markdown`, and `HTML`.
+- Web reading: open a single chapter URL, merge same-chapter pagination, and load previous or next chapters on demand.
+- Tomato downloads: enter a Tomato novel `book_id`, share link, or detail page link. FishNovel starts the bundled Windows x64 Tomato-Novel-Downloader, downloads TXT, and opens it in the reader.
+- Reading controls: chapter selector, numbered jump, previous/next chapter, refresh, font size, line spacing, themes, and bookmarks.
+- Reading state: persists bookshelf entries, recent reading, bookmarks, progress, and style preferences.
+- Low-distraction UI: collapsible toolbar and sidebar, compact chapter progress, and no visible novel title inside the reading area.
+- Boss key: when the plugin tool window is open, pressing any key hides it without affecting IDEA when the tool window is closed.
 
-## 使用方法
+## Usage
 
-1. 在 IDEA 中打开 `Tools -> 打开 FishNovel`。
-2. 展开顶部工具栏。
-3. 点击 `导入小说` 选择本地文件，或点击 `在线阅读` 输入网页章节 URL。
-4. 点击 `番茄下载` 输入番茄小说 ID 或链接。
-5. 首次使用番茄下载时，FishNovel 会自动释放并启动内置的 `TomatoNovelDownloader-Win64-v2.4.9.exe`；如果内置版本失效，可在文件选择器中选择外部 exe 作为兜底。
-6. 下载完成后会自动打开 TXT 阅读；后续再次下载会继续优先使用已配置的外部 exe 或内置 exe。
-7. 对番茄书点击 `更新` 时，会重新下载并尽量保留原阅读进度；失败时保留当前正文。
+1. Open `Tools -> Open FishNovel` in IntelliJ IDEA.
+2. Expand the top toolbar.
+3. Click `Local Import` to choose a local file, or click `Online Reading` to enter a web chapter URL.
+4. Click `Tomato Download` and enter a Tomato novel ID or link.
+5. On first Tomato download, FishNovel automatically extracts and starts the bundled `TomatoNovelDownloader-Win64-v2.4.9.exe`. If that bundled version fails, choose an external exe as a fallback.
+6. When the download completes, FishNovel opens the generated TXT automatically.
+7. For a Tomato book, click `Refresh` to download again while preserving reading progress where possible.
 
-## 本地安装教程
+## Local Installation
 
-### 方式一：从 IDEA 界面安装
+### Install From IDEA
 
-1. 运行 `.\gradlew.bat buildPlugin --console=plain`。
-2. 找到插件包：`build/distributions/FishNovel-2.0.0.zip`。
-3. 打开 IntelliJ IDEA。
-4. 进入 `Settings -> Plugins`。
-5. 点击插件页右上角齿轮按钮，选择 `Install Plugin from Disk...`。
-6. 选择 `FishNovel-2.0.0.zip`。
-7. 按提示重启 IDEA。
-8. 重启后在 `Tools -> 打开 FishNovel` 打开插件。
+1. Run `.\gradlew.bat buildPlugin --console=plain`.
+2. Find the plugin package at `build/distributions/FishNovel-2.0.0.zip`.
+3. Open IntelliJ IDEA.
+4. Go to `Settings -> Plugins`.
+5. Click the gear button and choose `Install Plugin from Disk...`.
+6. Select `FishNovel-2.0.0.zip`.
+7. Restart IDEA when prompted.
+8. Open the plugin from `Tools -> Open FishNovel`.
 
-### 方式二：手动复制到 IDEA 插件目录
+### Manual Copy
 
-适合需要直接覆盖本机插件目录的情况。执行前建议关闭 IDEA，避免 Windows 锁住旧版 jar。
+Use this when you want to replace the locally installed plugin directory directly. Close IDEA first to avoid Windows locking the old jar.
 
 ```powershell
 .\gradlew.bat buildPlugin --console=plain
@@ -58,71 +63,71 @@ if (Test-Path $target) {
 Expand-Archive -LiteralPath $zipPath -DestinationPath $pluginRoot -Force
 ```
 
-安装完成后重新打开 IDEA。`番茄下载` 已随插件内置 Windows x64 下载器；只有当内置下载器无法启动或需要替换版本时，才需要从官方 Release 下载外部 `TomatoNovelDownloader-Win64-*.exe` 并在文件选择器中选中该 exe。
+After installation, reopen IDEA. Tomato downloads include a bundled Windows x64 downloader. You only need to choose an external `TomatoNovelDownloader-Win64-*.exe` when the bundled downloader cannot start or when you intentionally want to replace it.
 
-## 番茄下载说明
+## Tomato Download Notes
 
-FishNovel 不内置番茄小说隐藏接口，也不绕过登录、验证码、付费或访问限制。番茄正文下载由第三方工具 Tomato-Novel-Downloader 完成，FishNovel 只负责启动内置或用户指定的本机下载器、等待 TXT 生成、打开缓存 TXT。
+FishNovel does not embed hidden Tomato novel APIs and does not bypass login, captcha, payment, or access restrictions. Tomato content download is delegated to the third-party Tomato-Novel-Downloader project. FishNovel only starts the bundled or user-selected local downloader, waits for TXT output, and opens the cached TXT file.
 
-番茄下载器获取方式：
+Downloader source:
 
-- 来源项目：`zhongbai2333/Tomato-Novel-Downloader`
-- 内置版本：`v2.4.9`
-- 来源地址：https://github.com/zhongbai2333/Tomato-Novel-Downloader/releases/tag/v2.4.9
-- 内置资产：`TomatoNovelDownloader-Win64-v2.4.9.exe`
-- 许可证：MIT License，随插件资源一同保留。
+- Project: `zhongbai2333/Tomato-Novel-Downloader`
+- Bundled version: `v2.4.9`
+- Source release: https://github.com/zhongbai2333/Tomato-Novel-Downloader/releases/tag/v2.4.9
+- Bundled asset: `TomatoNovelDownloader-Win64-v2.4.9.exe`
+- License: MIT License, included with the plugin resources.
 
-资源占用策略：
+Resource policy:
 
-- 打开 FishNovel 不会自动启动番茄下载器。
-- 只有点击 `番茄下载` 或对番茄书点击 `更新` 时才会启动下载器。
-- 下载成功、失败或超时后，FishNovel 会关闭本次启动的番茄下载器进程。
-- 从书架重新打开已缓存的番茄 TXT，不会启动下载器。
+- Opening FishNovel does not start the Tomato downloader.
+- The downloader starts only when you click `Tomato Download` or refresh a Tomato book.
+- FishNovel closes the managed downloader process after success, failure, or timeout.
+- Reopening a cached Tomato TXT from the bookshelf does not start the downloader.
 
-## 网页阅读说明
+## Web Reading Notes
 
-- 输入网页章节 URL 后，插件只加载当前章节。
-- 如果当前章节有同章分页，插件会自动合并分页内容。
-- 上一章/下一章只在点击时加载，不会在导入时一次性抓取整本书。
-- 当前内置 `Sudugu` 站点适配器、`BqgAjax` 站点适配器和通用 HTML 适配器。
-- 如果目标站点重定向到其他域名、返回空白、需要登录或有验证码，插件会提示失败并保留当前已打开内容。
+- FishNovel loads only the current chapter URL on import.
+- Same-chapter pagination is merged automatically when supported.
+- Previous and next chapters are loaded only when clicked.
+- Built-in adapters currently include `Sudugu`, `BqgAjax`, and a generic HTML adapter.
+- If a target site redirects to another domain, returns blank content, requires login, or shows captcha, FishNovel reports a clear failure and keeps the current content.
 
-## 数据位置
+## Data Locations
 
-FishNovel 没有独立数据库，使用 IDEA 的持久化 XML 和插件缓存目录。
+FishNovel does not use a standalone database. It stores state through IDEA persistent XML and plugin cache directories.
 
-- 阅读状态：`%APPDATA%/JetBrains/IntelliJIdea2025.3/options/fishNovel.xml`
-- 番茄缓存：`%LOCALAPPDATA%/JetBrains/IntelliJIdea2025.3/FishNovel/tomato`
-- 番茄 TXT：`%LOCALAPPDATA%/JetBrains/IntelliJIdea2025.3/FishNovel/tomato/library`
-- 番茄映射：`%LOCALAPPDATA%/JetBrains/IntelliJIdea2025.3/FishNovel/tomato/fishnovel-tomato-books.json`
-- 番茄日志：`%LOCALAPPDATA%/JetBrains/IntelliJIdea2025.3/FishNovel/tomato/tomato-downloader.log`
+- Reading state: `%APPDATA%/JetBrains/IntelliJIdea2025.3/options/fishNovel.xml`
+- Tomato cache: `%LOCALAPPDATA%/JetBrains/IntelliJIdea2025.3/FishNovel/tomato`
+- Tomato TXT files: `%LOCALAPPDATA%/JetBrains/IntelliJIdea2025.3/FishNovel/tomato/library`
+- Tomato mapping file: `%LOCALAPPDATA%/JetBrains/IntelliJIdea2025.3/FishNovel/tomato/fishnovel-tomato-books.json`
+- Tomato log file: `%LOCALAPPDATA%/JetBrains/IntelliJIdea2025.3/FishNovel/tomato/tomato-downloader.log`
 
-## 开发与验证
+## Development
 
-环境要求：
+Requirements:
 
 - IntelliJ IDEA 2025.3
 - JDK 21
-- 使用仓库内置 Gradle Wrapper
+- The Gradle wrapper included in this repository
 
-常用命令：
+Useful commands:
 
 ```powershell
 .\gradlew.bat unitTest --console=plain
 .\gradlew.bat buildPlugin --console=plain
 ```
 
-安装产物：
+Plugin package:
 
 ```text
 build/distributions/FishNovel-2.0.0.zip
 ```
 
-## 项目结构
+## Project Structure
 
-- `src/main/java/com/fishnovel/idea/model`：阅读领域模型。
-- `src/main/java/com/fishnovel/idea/parser`：本地文件解析器与网页章节解析。
-- `src/main/java/com/fishnovel/idea/service`：阅读状态、项目服务、番茄下载器管理。
-- `src/main/java/com/fishnovel/idea/source`：远程书源与番茄来源类型。
-- `src/main/java/com/fishnovel/idea/ui`：工具窗口、阅读面板和侧边栏。
-- `src/test/java`：解析、书源、跳转、状态和番茄下载服务测试。
+- `src/main/java/com/fishnovel/idea/model`: reading domain models.
+- `src/main/java/com/fishnovel/idea/parser`: local file parsers and web chapter parsing.
+- `src/main/java/com/fishnovel/idea/service`: reading state, project services, and Tomato downloader management.
+- `src/main/java/com/fishnovel/idea/source`: remote sources and Tomato source types.
+- `src/main/java/com/fishnovel/idea/ui`: tool window, reader panel, and sidebar.
+- `src/test/java`: parser, source, jump, state, and Tomato downloader service tests.
